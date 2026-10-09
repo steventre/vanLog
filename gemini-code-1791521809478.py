@@ -67,7 +67,7 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- FORM INPUTS (Dynamic key forces clean reset of ALL fields, including end time, on success) ---
+# --- FORM INPUTS (Dynamic key forces clean reset of ALL fields on success) ---
 with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
     st.subheader("Trip Details")
 
@@ -98,7 +98,6 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         end_mileage = st.number_input(
             "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
-        # End time starts completely blank using the identical layout
         end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
     st.markdown("---")
@@ -153,12 +152,12 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
             }
 
             st.session_state.log_history.append(trip_entry)
-            st.session_state.form_counter += 1  # Wipes out form state completely on success
+            st.session_state.form_counter += 1  # Increments to wipe form clean
             st.success("Trip successfully logged!")
             st.rerun()
 
-# --- PRINTABLE & EDITABLE LOG ---
-if st.session_state.log_history:
+# --- PRINTABLE & EDITABLE LOG (Always visible when history exists) ---
+if len(st.session_state.log_history) > 0:
     st.markdown("---")
     st.subheader("📋 Printable & Editable Vehicle Log")
     st.info(
@@ -207,4 +206,4 @@ if st.session_state.log_history:
                     st.success("Trip updated successfully!")
                     st.rerun()
 
-    df_logs = pd.DataFrame(st.session_state.log_history)
+    df_logs = pd.DataFrame(st.session_state.log_
