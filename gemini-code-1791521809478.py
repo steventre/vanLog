@@ -17,8 +17,8 @@ if "log_history" not in st.session_state:
 if "form_counter" not in st.session_state:
     st.session_state.form_counter = 0
 
-# Helper function to get current UTC-5 time in 12-hour components
-def get_current_utc5_components():
+# Helper function to get current UTC-5 time in 12-hour string format + AM/PM
+def get_current_utc5_time():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
     hour_24 = utc_minus_5.hour
     minute = utc_minus_5.minute
@@ -27,42 +27,40 @@ def get_current_utc5_components():
     hour_12 = hour_24 % 12
     if hour_12 == 0:
         hour_12 = 12
-    return hour_12, minute, ("PM" if is_pm else "AM")
+        
+    time_str = f"{hour_12}:{minute:02d}"
+    ampm = "PM" if is_pm else "AM"
+    return time_str, ampm
 
-cur_h, cur_m, cur_ap = get_current_utc5_components()
+cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render a 12-hour AM/PM time selector block
-def render_time_selector(label, default_h, default_m, default_ap, key_prefix, allow_blank=False):
+# Helper function to render a clean HH:MM text input + AM/PM dropdown
+def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
-    c1, c2, c3 = st.columns(3)
-    
-    hour_options = ["--"] + list(range(1, 13)) if allow_blank else list(range(1, 13))
-    default_h_idx = 0 if allow_blank and default_h is None else (default_h - 1 if not allow_blank else default_h)
+    c1, c2 = st.columns([2, 1])
     
     with c1:
-        h = st.selectbox("Hour", hour_options, index=default_h_idx if isinstance(default_h_idx, int) else 0, key=f"{key_prefix}_h")
+        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="e.g. 08:30", key=f"{key_prefix}_time")
     with c2:
-        m = st.selectbox("Min", list(range(0, 60)), index=default_m if default_m is not None else 0, key=f"{key_prefix}_m")
-    with c3:
-        ap = st.selectbox("AM/PM", ["AM", "PM"], index=0 if default_ap == "AM" else 1, key=f"{key_prefix}_ap")
-    
-    if h == "--":
+        ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
+        default_ap_idx = 0 if allow_blank and not default_ampm else (ap_options.index(default_ampm) if default_ampm in ap_options else 1)
+        ap = st.selectbox("AM/PM", ap_options, index=default_ap_idx, key=f"{key_prefix}_ap")
+        
+    if not t_val.strip() or ap == "--":
         return ""
-    return f"{h}:{m:02d} {ap}"
+    return f"{t_val.strip()} {ap}"
 
-# Helper function to parse existing time string back into components for the edit form
+# Helper function to parse existing time string back into time value and AM/PM for editing
 def parse_time_string(time_str):
     if not time_str:
-        return None, 0, "AM"
+        return "", ""
     try:
         parts = time_str.split()
-        hm = parts[0].split(":")
-        h = int(hm[0])
-        m = int(hm[1])
+        t_val = parts[0]
         ap = parts[1] if len(parts) > 1 else "AM"
-        return h, m, ap
+        return t_val, ap
     except (ValueError, IndexError):
-        return None, 0, "AM"
+        return "", ""
 
 # --- FORM INPUTS (Dynamic key forces clean reset on success) ---
 with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
@@ -89,13 +87,13 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         start_mileage = st.number_input(
             "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d"
         )
-        start_time_str = render_time_selector("Start Time", cur_h, cur_m, cur_ap, "main_start", allow_blank=False)
+        start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False)
 
     with col4:
         end_mileage = st.number_input(
             "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
-        end_time_str = render_time_selector("End Time", None, 0, "AM", "main_end", allow_blank=True)
+        end_time_str = render_time_input("End Time", "", "", "main_end", allow_blank=True)
 
     st.markdown("---")
     st.subheader("Student Passengers")
@@ -128,6 +126,8 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
             st.error("Starting Mileage is required.")
         elif not selected_students:
             st.error("Please select at least one student passenger.")
+        elif not start_time_str:
+            st.error("Start Time is required.")
         else:
             s_mileage = start_mileage
             e_mileage = end_mileage if end_mileage is not None else s_mileage
@@ -147,7 +147,6 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
             }
 
             st.session_state.log_history.append(trip_entry)
-            # Increment counter to force a completely fresh form on rerun
             st.session_state.form_counter += 1
             st.success("Trip successfully logged!")
             st.rerun()
@@ -178,13 +177,13 @@ if st.session_state.log_history:
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                est_h, est_m, est_ap = parse_time_string(trip["Start Time"])
-                if est_h is None:
-                    est_h, est_m, est_ap = cur_h, cur_m, cur_ap
-                e_start_time_str = render_time_selector("Start Time", est_h, est_m, est_ap, f"ed_start_{idx}", allow_blank=False)
+                est_t, est_ap = parse_time_string(trip["Start Time"])
+                if not est_t:
+                    est_t, est_ap = cur_t_str, cur_ap
+                e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
 
-                eet_h, eet_m, eet_ap = parse_time_string(trip["End Time"])
-                e_end_time_str = render_time_selector("End Time", eet_h, eet_m, eet_ap, f"ed_end_{idx}", allow_blank=True)
+                eet_t, eet_ap = parse_time_string(trip["End Time"])
+                e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
                 
                 e_saved = st.form_submit_button("Update Trip Entry")
                 if e_saved:
@@ -202,13 +201,4 @@ if st.session_state.log_history:
                     st.success("Trip updated successfully!")
                     st.rerun()
 
-    df_logs = pd.DataFrame(st.session_state.log_history)
-    st.dataframe(df_logs, use_container_width=True)
-
-    csv = df_logs.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Log as CSV (Excel Compatible)",
-        data=csv,
-        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text/csv",
-    )
+    df_logs = pd.DataFrame(st.
