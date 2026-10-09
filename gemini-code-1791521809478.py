@@ -8,7 +8,7 @@ st.set_page_config(
 )
 
 # App Header
-st.title("🚐 High School Vehicle Usage Log")
+st.title("🚐 High School Vehicle Usage Logg")
 st.markdown("Record vehicle trips, destinations, passengers, and mileage for school transport.")
 
 # Initialize session state for storing logs and form reset counter
@@ -179,4 +179,37 @@ if st.session_state.log_history:
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
                 # Identical time inputs for edit form
-                est_t, est_ap = parse_
+                est_t, est_ap = parse_time_string(trip["Start Time"])
+                if not est_t:
+                    est_t, est_ap = cur_t_str, cur_ap
+                e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
+
+                eet_t, eet_ap = parse_time_string(trip["End Time"])
+                e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
+                
+                e_saved = st.form_submit_button("Update Trip Entry")
+                if e_saved:
+                    calc_sm = e_start_m if e_start_m is not None else 0
+                    calc_em = e_end_m if e_end_m is not None else 0
+                    calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+
+                    st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
+                    st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
+                    st.session_state.log_history[idx]["Start Mileage"] = calc_sm
+                    st.session_state.log_history[idx]["End Mileage"] = calc_em
+                    st.session_state.log_history[idx]["Start Time"] = e_start_time_str
+                    st.session_state.log_history[idx]["End Time"] = e_end_time_str
+                    st.session_state.log_history[idx]["Total Miles"] = calc_total
+                    st.success("Trip updated successfully!")
+                    st.rerun()
+
+    df_logs = pd.DataFrame(st.session_state.log_history)
+    st.dataframe(df_logs, use_container_width=True)
+
+    csv = df_logs.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Log as CSV (Excel Compatible)",
+        data=csv,
+        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+        mime="text/csv",
+    )
