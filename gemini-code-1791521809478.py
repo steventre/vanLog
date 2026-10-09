@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
@@ -15,12 +15,43 @@ st.markdown("Record vehicle trips, destinations, passengers, and mileage for sch
 if "log_history" not in st.session_state:
     st.session_state.log_history = []
 
-# Helper function to get current time in UTC-5
-def get_utc_minus_5_time():
+# Helper function to get current UTC-5 time in 12-hour components
+def get_current_utc5_components():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
-    return utc_minus_5.time()
+    hour_24 = utc_minus_5.hour
+    minute = utc_minus_5.minute
+    
+    is_pm = hour_24 >= 12
+    hour_12 = hour_24 % 12
+    if hour_12 == 0:
+        hour_12 = 12
+    return hour_12, minute, ("PM" if is_pm else "AM")
 
-current_t = get_utc_minus_5_time()
+cur_h, cur_m, cur_ap = get_current_utc5_components()
+
+# Helper function to render an identical 12-hour AM/PM time selector block
+def render_time_selector(label, default_h, default_m, default_ap, key_prefix):
+    st.markdown(f"**{label} (UTC-5)**")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        h = st.selectbox("Hour", list(range(1, 13)), index=default_h - 1, key=f"{key_prefix}_h")
+    with c2:
+        m = st.selectbox("Min", list(range(0, 60)), index=default_m, key=f"{key_prefix}_m")
+    with c3:
+        ap = st.selectbox("AM/PM", ["AM", "PM"], index=0 if default_ap == "AM" else 1, key=f"{key_prefix}_ap")
+    return f"{h}:{m:02d} {ap}"
+
+# Helper function to parse existing time string back into components for the edit form
+def parse_time_string(time_str):
+    try:
+        parts = time_str.split()
+        hm = parts[0].split(":")
+        h = int(hm[0])
+        m = int(hm[1])
+        ap = parts[1] if len(parts) > 1 else "AM"
+        return h, m, ap
+    except (ValueError, IndexError):
+        return cur_h, cur_m, cur_ap
 
 # --- FORM INPUTS ---
 with st.form("vehicle_log_form"):
@@ -47,15 +78,13 @@ with st.form("vehicle_log_form"):
         start_mileage = st.number_input(
             "Starting Mileage", min_value=0, value=None, step=1, format="%d"
         )
-        # Native time input defaulting to current UTC-5 time
-        start_time = st.time_input("Start Time (UTC-5)", value=current_t)
+        start_time_str = render_time_selector("Start Time", cur_h, cur_m, cur_ap, "main_start")
 
     with col4:
         end_mileage = st.number_input(
             "Ending Mileage", min_value=0, value=None, step=1, format="%d"
         )
-        # Native time input defaulting to current UTC-5 time (identical field)
-        end_time = st.time_input("End Time (UTC-5)", value=current_t)
+        end_time_str = render_time_selector("End Time", cur_h, cur_m, cur_ap, "main_end")
 
     st.markdown("---")
     st.subheader("Student Passengers")
@@ -94,8 +123,8 @@ with st.form("vehicle_log_form"):
             "Start Mileage": s_mileage,
             "End Mileage": e_mileage,
             "Total Miles": total_miles,
-            "Start Time": start_time.strftime("%I:%M %p").lstrip("0"),
-            "End Time": end_time.strftime("%I:%M %p").lstrip("0"),
+            "Start Time": start_time_str,
+            "End Time": end_time_str,
             "Students": ", ".join(selected_students),
         }
 
@@ -128,20 +157,12 @@ if st.session_state.log_history:
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                # Parse existing time strings back into time objects for the identical time inputs
-                try:
-                    default_st_t = datetime.strptime(trip["Start Time"], "%I:%M %p").time()
-                except ValueError:
-                    default_st_t = current_t
+                # Parse existing times for edit form
+                est_h, est_m, est_ap = parse_time_string(trip["Start Time"])
+                e_start_time_str = render_time_selector("Start Time", est_h, est_m, est_ap, f"ed_start_{idx}")
 
-                try:
-                    default_et_t = datetime.strptime(trip["End Time"], "%I:%M %p").time()
-                except ValueError:
-                    default_et_t = current_t
-
-                # Identical time inputs in the edit section
-                e_start_time = st.time_input("Start Time (UTC-5)", value=default_st_t, key=f"ed_st_{idx}")
-                e_end_time = st.time_input("End Time (UTC-5)", value=default_et_t, key=f"ed_et_{idx}")
+                eet_h, eet_m, eet_ap = parse_time_string(trip["End Time"])
+                e_end_time_str = render_time_selector("End Time", eet_h, eet_m, eet_ap, f"ed_end_{idx}")
                 
                 e_saved = st.form_submit_button("Update Trip Entry")
                 if e_saved:
@@ -153,8 +174,8 @@ if st.session_state.log_history:
                     st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
                     st.session_state.log_history[idx]["Start Mileage"] = calc_sm
                     st.session_state.log_history[idx]["End Mileage"] = calc_em
-                    st.session_state.log_history[idx]["Start Time"] = e_start_time.strftime("%I:%M %p").lstrip("0")
-                    st.session_state.log_history[idx]["End Time"] = e_end_time.strftime("%I:%M %p").lstrip("0")
+                    st.session_state.log_history[idx]["Start Time"] = e_start_time_str
+                    st.session_state.log_history[idx]["End Time"] = e_end_time_str
                     st.session_state.log_history[idx]["Total Miles"] = calc_total
                     st.success("Trip updated successfully!")
                     st.rerun()
