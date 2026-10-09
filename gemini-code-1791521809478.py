@@ -206,4 +206,13 @@ if len(st.session_state.log_history) > 0:
                     st.success("Trip updated successfully!")
                     st.rerun()
 
-    df_logs = pd.DataFrame(st.session_state.log_
+    df_logs = pd.DataFrame(st.session_state.log_history)
+    st.dataframe(df_logs, use_container_width=True)
+
+    csv = df_logs.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Log as CSV (Excel Compatible)",
+        data=csv,
+        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+        mime="text/csv",
+    )
