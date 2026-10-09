@@ -29,20 +29,29 @@ def get_current_utc5_components():
 
 cur_h, cur_m, cur_ap = get_current_utc5_components()
 
-# Helper function to render an identical 12-hour AM/PM time selector block
-def render_time_selector(label, default_h, default_m, default_ap, key_prefix):
+# Helper function to render a 12-hour AM/PM time selector block (with optional blank support)
+def render_time_selector(label, default_h, default_m, default_ap, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
     c1, c2, c3 = st.columns(3)
+    
+    hour_options = ["--"] + list(range(1, 13)) if allow_blank else list(range(1, 13))
+    default_h_idx = 0 if allow_blank and default_h is None else (default_h - 1 if not allow_blank else default_h)
+    
     with c1:
-        h = st.selectbox("Hour", list(range(1, 13)), index=default_h - 1, key=f"{key_prefix}_h")
+        h = st.selectbox("Hour", hour_options, index=default_h_idx if isinstance(default_h_idx, int) else 0, key=f"{key_prefix}_h")
     with c2:
-        m = st.selectbox("Min", list(range(0, 60)), index=default_m, key=f"{key_prefix}_m")
+        m = st.selectbox("Min", list(range(0, 60)), index=default_m if default_m is not None else 0, key=f"{key_prefix}_m")
     with c3:
         ap = st.selectbox("AM/PM", ["AM", "PM"], index=0 if default_ap == "AM" else 1, key=f"{key_prefix}_ap")
+    
+    if h == "--":
+        return ""
     return f"{h}:{m:02d} {ap}"
 
 # Helper function to parse existing time string back into components for the edit form
 def parse_time_string(time_str):
+    if not time_str:
+        return None, 0, "AM"
     try:
         parts = time_str.split()
         hm = parts[0].split(":")
@@ -51,10 +60,10 @@ def parse_time_string(time_str):
         ap = parts[1] if len(parts) > 1 else "AM"
         return h, m, ap
     except (ValueError, IndexError):
-        return cur_h, cur_m, cur_ap
+        return None, 0, "AM"
 
 # --- FORM INPUTS ---
-with st.form("vehicle_log_form"):
+with st.form("vehicle_log_form", clear_on_submit=True):
     st.subheader("Trip Details")
 
     col1, col2 = st.columns(2)
@@ -76,15 +85,15 @@ with st.form("vehicle_log_form"):
     col3, col4 = st.columns(2)
     with col3:
         start_mileage = st.number_input(
-            "Starting Mileage", min_value=0, value=None, step=1, format="%d"
+            "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d"
         )
-        start_time_str = render_time_selector("Start Time", cur_h, cur_m, cur_ap, "main_start")
+        start_time_str = render_time_selector("Start Time", cur_h, cur_m, cur_ap, "main_start", allow_blank=False)
 
     with col4:
         end_mileage = st.number_input(
-            "Ending Mileage", min_value=0, value=None, step=1, format="%d"
+            "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
-        end_time_str = render_time_selector("End Time", cur_h, cur_m, cur_ap, "main_end")
+        end_time_str = render_time_selector("End Time", None, 0, "AM", "main_end", allow_blank=True)
 
     st.markdown("---")
     st.subheader("Student Passengers")
@@ -111,25 +120,30 @@ with st.form("vehicle_log_form"):
     submitted = st.form_submit_button("Save Trip Entry")
 
     if submitted:
-        s_mileage = start_mileage if start_mileage is not None else 0
-        e_mileage = end_mileage if end_mileage is not None else 0
-        total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
+        if not driver_name.strip():
+            st.error("Driver Name is required.")
+        elif start_mileage is None:
+            st.error("Starting Mileage is required.")
+        else:
+            s_mileage = start_mileage
+            e_mileage = end_mileage if end_mileage is not None else s_mileage
+            total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
 
-        trip_entry = {
-            "Date": trip_date.strftime("%Y-%m-%d"),
-            "Driver": driver_name,
-            "Vehicle": vehicle,
-            "Destination / Purpose": destination,
-            "Start Mileage": s_mileage,
-            "End Mileage": e_mileage,
-            "Total Miles": total_miles,
-            "Start Time": start_time_str,
-            "End Time": end_time_str,
-            "Students": ", ".join(selected_students),
-        }
+            trip_entry = {
+                "Date": trip_date.strftime("%Y-%m-%d"),
+                "Driver": driver_name,
+                "Vehicle": vehicle,
+                "Destination / Purpose": destination,
+                "Start Mileage": s_mileage,
+                "End Mileage": end_mileage if end_mileage is not None else 0,
+                "Total Miles": total_miles,
+                "Start Time": start_time_str,
+                "End Time": end_time_str,
+                "Students": ", ".join(selected_students),
+            }
 
-        st.session_state.log_history.append(trip_entry)
-        st.success("Trip successfully logged!")
+            st.session_state.log_history.append(trip_entry)
+            st.success("Trip successfully logged!")
 
 # --- PRINTABLE & EDITABLE LOG ---
 if st.session_state.log_history:
@@ -159,10 +173,12 @@ if st.session_state.log_history:
                 
                 # Parse existing times for edit form
                 est_h, est_m, est_ap = parse_time_string(trip["Start Time"])
-                e_start_time_str = render_time_selector("Start Time", est_h, est_m, est_ap, f"ed_start_{idx}")
+                if est_h is None:
+                    est_h, est_m, est_ap = cur_h, cur_m, cur_ap
+                e_start_time_str = render_time_selector("Start Time", est_h, est_m, est_ap, f"ed_start_{idx}", allow_blank=False)
 
                 eet_h, eet_m, eet_ap = parse_time_string(trip["End Time"])
-                e_end_time_str = render_time_selector("End Time", eet_h, eet_m, eet_ap, f"ed_end_{idx}")
+                e_end_time_str = render_time_selector("End Time", eet_h, eet_m, eet_ap, f"ed_end_{idx}", allow_blank=True)
                 
                 e_saved = st.form_submit_button("Update Trip Entry")
                 if e_saved:
