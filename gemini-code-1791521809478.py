@@ -27,6 +27,12 @@ with st.form("vehicle_log_form"):
         # Default to today's date
         trip_date = st.date_input("Date", value=datetime.today())
 
+    # Vehicle Selection Field
+    vehicle = st.selectbox(
+        "Select Vehicle",
+        ["Silver Van", "White Van", "Honda Pilot"]
+    )
+
     # Destination / Purpose defaulted to "Nehemiah 2.0"
     destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0")
 
@@ -35,17 +41,21 @@ with st.form("vehicle_log_form"):
 
     col3, col4 = st.columns(2)
     with col3:
-        start_mileage = st.number_input(
-            "Starting Mileage", min_value=0, value=0, step=1
-        )
+        # Using text_input for mileage so it's easy to clear/type over without fighting default zeros
+        start_mileage_str = st.text_input("Starting Mileage", value="0")
+        
+        # Start time defaults to right now (formatted in 12-hour AM/PM)
         start_time = st.time_input(
-            "Start Time", value=datetime.now().time()
+            "Start Time", 
+            value=datetime.now().time()
         )
     with col4:
-        end_mileage = st.number_input(
-            "Ending Mileage", min_value=0, value=0, step=1
+        end_mileage_str = st.text_input("Ending Mileage", value="0")
+        
+        end_time = st.time_input(
+            "End Time", 
+            value=datetime.now().time()
         )
-        end_time = st.time_input("End Time", value=datetime.now().time())
 
     st.markdown("---")
     st.subheader("Student Passengers")
@@ -74,6 +84,17 @@ with st.form("vehicle_log_form"):
     submitted = st.form_submit_button("Save Trip Entry")
 
     if submitted:
+        # Convert mileage inputs safely to integers
+        try:
+            start_mileage = int(start_mileage_str)
+        except ValueError:
+            start_mileage = 0
+
+        try:
+            end_mileage = int(end_mileage_str)
+        except ValueError:
+            end_mileage = 0
+
         # Calculations
         total_miles = (
             end_mileage - start_mileage if end_mileage >= start_mileage else 0
@@ -82,12 +103,13 @@ with st.form("vehicle_log_form"):
         trip_entry = {
             "Date": trip_date.strftime("%Y-%m-%d"),
             "Driver": driver_name,
+            "Vehicle": vehicle,
             "Destination / Purpose": destination,
             "Start Mileage": start_mileage,
             "End Mileage": end_mileage,
             "Total Miles": total_miles,
-            "Start Time": start_time.strftime("%H:%M"),
-            "End Time": end_time.strftime("%H:%M"),
+            "Start Time": start_time.strftime("%I:%M %p"),
+            "End Time": end_time.strftime("%I:%M %p"),
             "Students": ", ".join(selected_students),
         }
 
