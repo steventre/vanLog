@@ -34,13 +34,13 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render a clean HH:MM text input + AM/PM dropdown
+# Helper function to render an identical HH:MM text input + AM/PM dropdown for both start and end
 def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
     c1, c2 = st.columns([2, 1])
     
     with c1:
-        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="e.g. 08:30", key=f"{key_prefix}_time")
+        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="e.g. 04:15", key=f"{key_prefix}_time")
     with c2:
         ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
         default_ap_idx = 0 if allow_blank and not default_ampm else (ap_options.index(default_ampm) if default_ampm in ap_options else 1)
@@ -93,6 +93,7 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         end_mileage = st.number_input(
             "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
+        # End time uses the exact same layout, defaulting to blank with "--" option
         end_time_str = render_time_input("End Time", "", "", "main_end", allow_blank=True)
 
     st.markdown("---")
@@ -177,37 +178,5 @@ if st.session_state.log_history:
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                est_t, est_ap = parse_time_string(trip["Start Time"])
-                if not est_t:
-                    est_t, est_ap = cur_t_str, cur_ap
-                e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
-
-                eet_t, eet_ap = parse_time_string(trip["End Time"])
-                e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
-                
-                e_saved = st.form_submit_button("Update Trip Entry")
-                if e_saved:
-                    calc_sm = e_start_m if e_start_m is not None else 0
-                    calc_em = e_end_m if e_end_m is not None else 0
-                    calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                    st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
-                    st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
-                    st.session_state.log_history[idx]["Start Mileage"] = calc_sm
-                    st.session_state.log_history[idx]["End Mileage"] = calc_em
-                    st.session_state.log_history[idx]["Start Time"] = e_start_time_str
-                    st.session_state.log_history[idx]["End Time"] = e_end_time_str
-                    st.session_state.log_history[idx]["Total Miles"] = calc_total
-                    st.success("Trip updated successfully!")
-                    st.rerun()
-
-    df_logs = pd.DataFrame(st.session_state.log_history)
-    st.dataframe(df_logs, use_container_width=True)
-
-    csv = df_logs.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Log as CSV (Excel Compatible)",
-        data=csv,
-        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text/csv",
-    )
+                # Identical time inputs for edit form
+                est_t, est_ap = parse_
