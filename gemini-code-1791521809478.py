@@ -173,4 +173,5 @@ if st.session_state.log_history:
         label="Download Log as CSV (Excel Compatible)",
         data=csv,
         file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text
+        mime="text/csv",
+    )
