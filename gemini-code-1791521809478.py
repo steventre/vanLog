@@ -8,7 +8,7 @@ st.set_page_config(
 )
 
 # App Header
-st.title("🚐 High School Vehicle Usage Logg")
+st.title("🚐 High School Vehicle Usage Log")
 st.markdown("Record vehicle trips, destinations, passengers, and mileage for school transport.")
 
 # Initialize session state for storing logs and form reset counter
@@ -34,16 +34,22 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render an identical HH:MM text input + AM/PM dropdown for both start and end
+# Helper function ensuring identical layout (HH:MM text box + AM/PM dropdown) for both start and end times
 def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
     c1, c2 = st.columns([2, 1])
     
     with c1:
-        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="e.g. 04:15", key=f"{key_prefix}_time")
+        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="HH:MM", key=f"{key_prefix}_time")
     with c2:
         ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
-        default_ap_idx = 0 if allow_blank and not default_ampm else (ap_options.index(default_ampm) if default_ampm in ap_options else 1)
+        
+        # Determine correct index safely
+        if not default_ampm or default_ampm not in ap_options:
+            default_ap_idx = 0 if allow_blank else 0
+        else:
+            default_ap_idx = ap_options.index(default_ampm)
+            
         ap = st.selectbox("AM/PM", ap_options, index=default_ap_idx, key=f"{key_prefix}_ap")
         
     if not t_val.strip() or ap == "--":
@@ -93,8 +99,8 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         end_mileage = st.number_input(
             "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
-        # End time uses the exact same layout, defaulting to blank with "--" option
-        end_time_str = render_time_input("End Time", "", "", "main_end", allow_blank=True)
+        # End time uses the exact same layout function with allow_blank=True
+        end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
     st.markdown("---")
     st.subheader("Student Passengers")
