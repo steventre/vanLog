@@ -29,7 +29,7 @@ def get_current_utc5_components():
 
 cur_h, cur_m, cur_ap = get_current_utc5_components()
 
-# Helper function to render a 12-hour AM/PM time selector block (with optional blank support)
+# Helper function to render a 12-hour AM/PM time selector block
 def render_time_selector(label, default_h, default_m, default_ap, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
     c1, c2, c3 = st.columns(3)
@@ -62,8 +62,8 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return None, 0, "AM"
 
-# --- FORM INPUTS ---
-with st.form("vehicle_log_form", clear_on_submit=True):
+# --- FORM INPUTS (No clear_on_submit so validation works first) ---
+with st.form("vehicle_log_form"):
     st.subheader("Trip Details")
 
     col1, col2 = st.columns(2)
@@ -146,6 +146,8 @@ with st.form("vehicle_log_form", clear_on_submit=True):
 
             st.session_state.log_history.append(trip_entry)
             st.success("Trip successfully logged!")
+            # Trigger a rerun to clear form fields only upon successful save
+            st.rerun()
 
 # --- PRINTABLE & EDITABLE LOG ---
 if st.session_state.log_history:
@@ -173,7 +175,6 @@ if st.session_state.log_history:
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                # Parse existing times for edit form
                 est_h, est_m, est_ap = parse_time_string(trip["Start Time"])
                 if est_h is None:
                     est_h, est_m, est_ap = cur_h, cur_m, cur_ap
