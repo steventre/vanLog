@@ -11,9 +11,11 @@ st.set_page_config(
 st.title("🚐 High School Vehicle Usage Log")
 st.markdown("Record vehicle trips, destinations, passengers, and mileage for school transport.")
 
-# Initialize session state for storing logs if not already present
+# Initialize session state for storing logs and form reset counter
 if "log_history" not in st.session_state:
     st.session_state.log_history = []
+if "form_counter" not in st.session_state:
+    st.session_state.form_counter = 0
 
 # Helper function to get current UTC-5 time in 12-hour components
 def get_current_utc5_components():
@@ -62,8 +64,8 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return None, 0, "AM"
 
-# --- FORM INPUTS (No clear_on_submit so validation works first) ---
-with st.form("vehicle_log_form"):
+# --- FORM INPUTS (Dynamic key forces clean reset on success) ---
+with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
     st.subheader("Trip Details")
 
     col1, col2 = st.columns(2)
@@ -145,8 +147,9 @@ with st.form("vehicle_log_form"):
             }
 
             st.session_state.log_history.append(trip_entry)
+            # Increment counter to force a completely fresh form on rerun
+            st.session_state.form_counter += 1
             st.success("Trip successfully logged!")
-            # Trigger a rerun to clear form fields only upon successful save
             st.rerun()
 
 # --- PRINTABLE & EDITABLE LOG ---
