@@ -44,7 +44,6 @@ def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank
     with c2:
         ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
         
-        # Determine correct index safely
         if not default_ampm or default_ampm not in ap_options:
             default_ap_idx = 0 if allow_blank else 0
         else:
@@ -68,7 +67,7 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- FORM INPUTS (Dynamic key forces clean reset on success) ---
+# --- FORM INPUTS (Dynamic key forces clean reset of ALL fields, including end time, on success) ---
 with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
     st.subheader("Trip Details")
 
@@ -99,7 +98,7 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         end_mileage = st.number_input(
             "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
         )
-        # End time uses the exact same layout function with allow_blank=True
+        # End time starts completely blank using the identical layout
         end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
     st.markdown("---")
@@ -154,7 +153,7 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
             }
 
             st.session_state.log_history.append(trip_entry)
-            st.session_state.form_counter += 1
+            st.session_state.form_counter += 1  # Wipes out form state completely on success
             st.success("Trip successfully logged!")
             st.rerun()
 
@@ -184,7 +183,6 @@ if st.session_state.log_history:
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                # Identical time inputs for edit form
                 est_t, est_ap = parse_time_string(trip["Start Time"])
                 if not est_t:
                     est_t, est_ap = cur_t_str, cur_ap
@@ -210,12 +208,3 @@ if st.session_state.log_history:
                     st.rerun()
 
     df_logs = pd.DataFrame(st.session_state.log_history)
-    st.dataframe(df_logs, use_container_width=True)
-
-    csv = df_logs.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Log as CSV (Excel Compatible)",
-        data=csv,
-        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text/csv",
-    )
