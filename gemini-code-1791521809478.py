@@ -160,4 +160,51 @@ if st.session_state.log_history:
         with st.expander(f"Trip #{idx + 1}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
             with st.form(f"edit_form_{idx}"):
                 try:
-                    default_d = datetime.strptime(trip["Date"], "%Y-%m
+                    default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
+                except ValueError:
+                    default_d = datetime.today().date()
+                
+                e_date = st.date_input("Date", value=default_d, key=f"ed_date_{idx}")
+                e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{idx}")
+                
+                existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] != 0 else None
+                existing_em = int(trip["End Mileage"]) if trip["End Mileage"] != 0 else None
+                
+                e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
+                e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
+                
+                # Parse existing times for edit form
+                est_h, est_m, est_ap = parse_time_string(trip["Start Time"])
+                if est_h is None:
+                    est_h, est_m, est_ap = cur_h, cur_m, cur_ap
+                e_start_time_str = render_time_selector("Start Time", est_h, est_m, est_ap, f"ed_start_{idx}", allow_blank=False)
+
+                eet_h, eet_m, eet_ap = parse_time_string(trip["End Time"])
+                e_end_time_str = render_time_selector("End Time", eet_h, eet_m, eet_ap, f"ed_end_{idx}", allow_blank=True)
+                
+                e_saved = st.form_submit_button("Update Trip Entry")
+                if e_saved:
+                    calc_sm = e_start_m if e_start_m is not None else 0
+                    calc_em = e_end_m if e_end_m is not None else 0
+                    calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+
+                    st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
+                    st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
+                    st.session_state.log_history[idx]["Start Mileage"] = calc_sm
+                    st.session_state.log_history[idx]["End Mileage"] = calc_em
+                    st.session_state.log_history[idx]["Start Time"] = e_start_time_str
+                    st.session_state.log_history[idx]["End Time"] = e_end_time_str
+                    st.session_state.log_history[idx]["Total Miles"] = calc_total
+                    st.success("Trip updated successfully!")
+                    st.rerun()
+
+    df_logs = pd.DataFrame(st.session_state.log_history)
+    st.dataframe(df_logs, use_container_width=True)
+
+    csv = df_logs.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Log as CSV (Excel Compatible)",
+        data=csv,
+        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+        mime="text/csv",
+    )
