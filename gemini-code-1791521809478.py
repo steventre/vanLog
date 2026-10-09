@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import pandas as pd
 import streamlit as st
 
@@ -18,14 +18,9 @@ if "log_history" not in st.session_state:
 # Helper function to get current time in UTC-5
 def get_utc_minus_5_time():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
-    return utc_minus_5
+    return utc_minus_5.time()
 
-current_dt = get_utc_minus_5_time()
-default_hour_12 = current_dt.strftime("%I").lstrip("0")
-if not default_hour_12:
-    default_hour_12 = "12"
-default_min = current_dt.strftime("%M")
-default_am_pm = current_dt.strftime("%p")
+current_t = get_utc_minus_5_time()
 
 # --- FORM INPUTS ---
 with st.form("vehicle_log_form"):
@@ -52,25 +47,15 @@ with st.form("vehicle_log_form"):
         start_mileage = st.number_input(
             "Starting Mileage", min_value=0, value=None, step=1, format="%d"
         )
-        
-        st.markdown("**Start Time (UTC-5)**")
-        st_c1, st_c2 = st.columns([2, 1])
-        with st_c1:
-            start_time_input = st.text_input("Time (HH:MM)", value=f"{default_hour_12}:{default_min}", key="main_st")
-        with st_c2:
-            start_ampm = st.selectbox("AM/PM", ["AM", "PM"], index=0 if default_am_pm == "AM" else 1, key="main_sap")
+        # Native time input defaulting to current UTC-5 time
+        start_time = st.time_input("Start Time (UTC-5)", value=current_t)
 
     with col4:
         end_mileage = st.number_input(
             "Ending Mileage", min_value=0, value=None, step=1, format="%d"
         )
-        
-        st.markdown("**End Time (UTC-5)**")
-        et_c1, et_c2 = st.columns([2, 1])
-        with et_c1:
-            end_time_input = st.text_input("Time (HH:MM)", value="", placeholder="e.g. 4:15", key="main_et")
-        with et_c2:
-            end_ampm = st.selectbox("AM/PM", ["AM", "PM"], index=1, key="main_eap")
+        # Native time input defaulting to current UTC-5 time (identical field)
+        end_time = st.time_input("End Time (UTC-5)", value=current_t)
 
     st.markdown("---")
     st.subheader("Student Passengers")
@@ -101,9 +86,6 @@ with st.form("vehicle_log_form"):
         e_mileage = end_mileage if end_mileage is not None else 0
         total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
 
-        final_start_time = f"{start_time_input} {start_ampm}".strip() if start_time_input else ""
-        final_end_time = f"{end_time_input} {end_ampm}".strip() if end_time_input else ""
-
         trip_entry = {
             "Date": trip_date.strftime("%Y-%m-%d"),
             "Driver": driver_name,
@@ -112,8 +94,8 @@ with st.form("vehicle_log_form"):
             "Start Mileage": s_mileage,
             "End Mileage": e_mileage,
             "Total Miles": total_miles,
-            "Start Time": final_start_time,
-            "End Time": final_end_time,
+            "Start Time": start_time.strftime("%I:%M %p").lstrip("0"),
+            "End Time": end_time.strftime("%I:%M %p").lstrip("0"),
             "Students": ", ".join(selected_students),
         }
 
@@ -140,51 +122,39 @@ if st.session_state.log_history:
                 e_date = st.date_input("Date", value=default_d, key=f"ed_date_{idx}")
                 e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{idx}")
                 
-                # Blank-capable mileage fields for editing
                 existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] != 0 else None
                 existing_em = int(trip["End Mileage"]) if trip["End Mileage"] != 0 else None
                 
                 e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
                 e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                 
-                # Parse existing start/end time components if present to prepopulate edit fields cleanly
-                st_parts = trip["Start Time"].split()
-                st_val = st_parts[0] if len(st_parts) > 0 else ""
-                st_ap_idx = 1 if len(st_parts) > 1 and st_parts[1] == "PM" else 0
+                # Parse existing time strings back into time objects for the identical time inputs
+                try:
+                    default_st_t = datetime.strptime(trip["Start Time"], "%I:%M %p").time()
+                except ValueError:
+                    default_st_t = current_t
 
-                et_parts = trip["End Time"].split()
-                et_val = et_parts[0] if len(et_parts) > 0 else ""
-                et_ap_idx = 1 if len(et_parts) > 1 and et_parts[1] == "PM" else 0
+                try:
+                    default_et_t = datetime.strptime(trip["End Time"], "%I:%M %p").time()
+                except ValueError:
+                    default_et_t = current_t
 
-                st.markdown("**Start Time**")
-                ed_st_c1, ed_st_c2 = st.columns([2, 1])
-                with ed_st_c1:
-                    e_st_input = st.text_input("Time", value=st_val, key=f"ed_st_{idx}")
-                with ed_st_c2:
-                    e_st_ap = st.selectbox("AM/PM", ["AM", "PM"], index=st_ap_idx, key=f"ed_sap_{idx}")
-
-                st.markdown("**End Time**")
-                ed_et_c1, ed_et_c2 = st.columns([2, 1])
-                with ed_et_c1:
-                    e_et_input = st.text_input("Time", value=et_val, key=f"ed_et_{idx}")
-                with ed_et_c2:
-                    e_et_ap = st.selectbox("AM/PM", ["AM", "PM"], index=et_ap_idx, key=f"ed_eap_{idx}")
+                # Identical time inputs in the edit section
+                e_start_time = st.time_input("Start Time (UTC-5)", value=default_st_t, key=f"ed_st_{idx}")
+                e_end_time = st.time_input("End Time (UTC-5)", value=default_et_t, key=f"ed_et_{idx}")
                 
                 e_saved = st.form_submit_button("Update Trip Entry")
                 if e_saved:
                     calc_sm = e_start_m if e_start_m is not None else 0
                     calc_em = e_end_m if e_end_m is not None else 0
                     calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-                    
-                    updated_start_t = f"{e_st_input} {e_st_ap}".strip() if e_st_input else ""
-                    updated_end_t = f"{e_et_input} {e_et_ap}".strip() if e_et_input else ""
 
                     st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
                     st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
                     st.session_state.log_history[idx]["Start Mileage"] = calc_sm
                     st.session_state.log_history[idx]["End Mileage"] = calc_em
-                    st.session_state.log_history[idx]["Start Time"] = updated_start_t
-                    st.session_state.log_history[idx]["End Time"] = updated_end_t
+                    st.session_state.log_history[idx]["Start Time"] = e_start_time.strftime("%I:%M %p").lstrip("0")
+                    st.session_state.log_history[idx]["End Time"] = e_end_time.strftime("%I:%M %p").lstrip("0")
                     st.session_state.log_history[idx]["Total Miles"] = calc_total
                     st.success("Trip updated successfully!")
                     st.rerun()
