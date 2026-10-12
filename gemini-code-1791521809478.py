@@ -7,6 +7,42 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
+# Custom CSS for a professional print layout
+st.markdown("""
+    <style>
+    @media print {
+        /* Hide sidebar, main form, inputs, expanders, and download buttons when printing */
+        header, footer, [data-testid="stSidebar"], form, .stExpander, .stButton, .stDownloadButton {
+            display: none !important;
+        }
+        
+        /* Reset background and layout for clean paper printing */
+        body, html, [data-testid="stAppViewContainer"] {
+            background: white !important;
+            color: black !important;
+        }
+        
+        /* Make sure the data table expands fully and looks crisp */
+        [data-testid="stDataFrame"] {
+            width: 100% !important;
+            overflow: visible !important;
+        }
+        
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+        
+        th, td {
+            border: 1px solid black !important;
+            padding: 8px !important;
+            text-align: left !important;
+            color: black !important;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # App Header
 st.title("🚐 High School Vehicle Usage Log")
 st.markdown("Record vehicle trips, destinations, passengers, and mileage for school transport.")
@@ -67,7 +103,7 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- FORM INPUTS (Dynamic key forces clean reset of ALL fields on success) ---
+# --- FORM INPUTS ---
 with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
     st.subheader("Trip Details")
 
@@ -152,11 +188,11 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
             }
 
             st.session_state.log_history.append(trip_entry)
-            st.session_state.form_counter += 1  # Increments to wipe form clean
+            st.session_state.form_counter += 1
             st.success("Trip successfully logged!")
             st.rerun()
 
-# --- PRINTABLE & EDITABLE LOG (Always visible when history exists) ---
+# --- PRINTABLE & EDITABLE LOG ---
 if len(st.session_state.log_history) > 0:
     st.markdown("---")
     st.subheader("📋 Printable & Editable Vehicle Log")
