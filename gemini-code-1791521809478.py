@@ -216,4 +216,82 @@ if len(st.session_state.log_history) > 0:
                 est_t, est_ap = parse_time_string(trip["Start Time"])
                 if not est_t:
                     est_t, est_ap = cur_t_str, cur_ap
-                e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}",
+                e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
+
+                eet_t, eet_ap = parse_time_string(trip["End Time"])
+                e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
+                
+                e_saved = st.form_submit_button("Update Trip Entry")
+                if e_saved:
+                    calc_sm = e_start_m if e_start_m is not None else 0
+                    calc_em = e_end_m if e_end_m is not None else 0
+                    calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+
+                    st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
+                    st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
+                    st.session_state.log_history[idx]["Start Mileage"] = calc_sm
+                    st.session_state.log_history[idx]["End Mileage"] = calc_em
+                    st.session_state.log_history[idx]["Start Time"] = e_start_time_str
+                    st.session_state.log_history[idx]["End Time"] = e_end_time_str
+                    st.session_state.log_history[idx]["Total Miles"] = calc_total
+                    st.success("Trip updated successfully!")
+                    st.rerun()
+
+    # Standard interactive dataframe view on screen
+    df_logs = pd.DataFrame(st.session_state.log_history)
+    st.dataframe(df_logs, use_container_width=True)
+
+    # --- DEDICATED CLEAN PRINTABLE HTML TABLE ---
+    html_rows = ""
+    for idx, t in enumerate(st.session_state.log_history):
+        html_rows += f"""
+            <tr>
+                <td>{idx + 1}</td>
+                <td>{t['Date']}</td>
+                <td>{t['Driver']}</td>
+                <td>{t['Vehicle']}</td>
+                <td>{t['Destination / Purpose']}</td>
+                <td>{t['Start Mileage']}</td>
+                <td>{t['End Mileage']}</td>
+                <td>{t['Total Miles']}</td>
+                <td>{t['Start Time']}</td>
+                <td>{t['End Time']}</td>
+                <td>{t['Students']}</td>
+            </tr>
+        """
+
+    print_html = f"""
+        <div class="printable-log-container">
+            <h2 style="text-align: center; font-family: sans-serif; margin-bottom: 5px;">High School Vehicle Usage Log</h2>
+            <p style="text-align: center; font-family: sans-serif; font-size: 12px; margin-bottom: 20px;">Generated on {datetime.today().strftime('%Y-%m-%d')}</p>
+            <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="border: 1px solid #333; padding: 6px;">#</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Date</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Driver</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Vehicle</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Destination</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Start Mi</th>
+                        <th style="border: 1px solid #333; padding: 6px;">End Mi</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Total Mi</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Start Time</th>
+                        <th style="border: 1px solid #333; padding: 6px;">End Time</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Student Passengers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+    """
+    st.markdown(print_html, unsafe_allow_html=True)
+
+    csv = df_logs.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Log as CSV (Excel Compatible)",
+        data=csv,
+        file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+        mime="text/csv",
+    )
