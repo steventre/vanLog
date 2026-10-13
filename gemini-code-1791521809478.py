@@ -7,11 +7,11 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for professional printing & hidden UI elements during print
+# Custom CSS for professional printing & screen preview styling
 st.markdown("""
     <style>
     @media print {
-        /* Hide interactive elements, sidebar, form, and buttons */
+        /* Hide interactive elements, sidebar, form, and buttons when printing */
         header, footer, [data-testid="stSidebar"], form, .stExpander, .stButton, .stDownloadButton, [data-testid="stDataFrame"] {
             display: none !important;
         }
@@ -22,7 +22,6 @@ st.markdown("""
             color: black !important;
         }
         
-        /* Printable document styling */
         .printable-log-container {
             display: block !important;
             width: 100% !important;
@@ -31,9 +30,16 @@ st.markdown("""
         }
     }
     
-    /* Screen styling for the custom printable preview block */
+    /* Styling for the visible log sheet preview on screen */
     .printable-log-container {
-        display: none;
+        display: block;
+        background-color: white;
+        color: black;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        margin-top: 20px;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -237,36 +243,34 @@ if len(st.session_state.log_history) > 0:
                     st.success("Trip updated successfully!")
                     st.rerun()
 
-    # Standard interactive dataframe view on screen
     df_logs = pd.DataFrame(st.session_state.log_history)
-    st.dataframe(df_logs, use_container_width=True)
 
-    # --- DEDICATED CLEAN PRINTABLE HTML TABLE ---
+    # --- CLEAN PRINTABLE HTML TABLE VIEW ---
     html_rows = ""
     for idx, t in enumerate(st.session_state.log_history):
         html_rows += f"""
             <tr>
-                <td>{idx + 1}</td>
-                <td>{t['Date']}</td>
-                <td>{t['Driver']}</td>
-                <td>{t['Vehicle']}</td>
-                <td>{t['Destination / Purpose']}</td>
-                <td>{t['Start Mileage']}</td>
-                <td>{t['End Mileage']}</td>
-                <td>{t['Total Miles']}</td>
-                <td>{t['Start Time']}</td>
-                <td>{t['End Time']}</td>
-                <td>{t['Students']}</td>
+                <td style="border: 1px solid #333; padding: 6px; text-align: center;">{idx + 1}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Date']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Driver']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Vehicle']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Destination / Purpose']}</td>
+                <td style="border: 1px solid #333; padding: 6px; text-align: right;">{t['Start Mileage']}</td>
+                <td style="border: 1px solid #333; padding: 6px; text-align: right;">{t['End Mileage']}</td>
+                <td style="border: 1px solid #333; padding: 6px; text-align: right;">{t['Total Miles']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Start Time']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['End Time']}</td>
+                <td style="border: 1px solid #333; padding: 6px;">{t['Students']}</td>
             </tr>
         """
 
     print_html = f"""
         <div class="printable-log-container">
-            <h2 style="text-align: center; font-family: sans-serif; margin-bottom: 5px;">High School Vehicle Usage Log</h2>
-            <p style="text-align: center; font-family: sans-serif; font-size: 12px; margin-bottom: 20px;">Generated on {datetime.today().strftime('%Y-%m-%d')}</p>
+            <h3 style="text-align: center; font-family: sans-serif; margin-bottom: 5px; color: #333;">Vehicle Usage Log Sheet</h3>
+            <p style="text-align: center; font-family: sans-serif; font-size: 11px; color: #666; margin-bottom: 15px;">Report generated on {datetime.today().strftime('%Y-%m-%d')}</p>
             <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px;">
                 <thead>
-                    <tr style="background-color: #f2f2f2;">
+                    <tr style="background-color: #f8f9fa; color: #333;">
                         <th style="border: 1px solid #333; padding: 6px;">#</th>
                         <th style="border: 1px solid #333; padding: 6px;">Date</th>
                         <th style="border: 1px solid #333; padding: 6px;">Driver</th>
@@ -274,7 +278,7 @@ if len(st.session_state.log_history) > 0:
                         <th style="border: 1px solid #333; padding: 6px;">Destination</th>
                         <th style="border: 1px solid #333; padding: 6px;">Start Mi</th>
                         <th style="border: 1px solid #333; padding: 6px;">End Mi</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Total Mi</th>
+                        <th style="xmlborder: 1px solid #333; padding: 6px;">Total Mi</th>
                         <th style="border: 1px solid #333; padding: 6px;">Start Time</th>
                         <th style="border: 1px solid #333; padding: 6px;">End Time</th>
                         <th style="border: 1px solid #333; padding: 6px;">Student Passengers</th>
