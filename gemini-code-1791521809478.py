@@ -7,39 +7,31 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for professional printing & screen preview styling
+# Custom CSS: Hide everything except our printable sheet when printing
 st.markdown("""
     <style>
     @media print {
-        /* Hide interactive elements, sidebar, form, and buttons when printing */
-        header, footer, [data-testid="stSidebar"], form, .stExpander, .stButton, .stDownloadButton, [data-testid="stDataFrame"] {
+        /* Hide all UI elements, inputs, buttons, and headers */
+        header, footer, [data-testid="stSidebar"], [data-testid="stMainBlockContainer"] > *:not(:has(.printable-sheet)), .stButton, .stDownloadButton, [data-testid="stDataFrame"] {
             display: none !important;
         }
         
-        /* Clean white background for printing */
-        body, html, [data-testid="stAppViewContainer"] {
+        /* Ensure pristine white page background */
+        body, html, [data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"] {
             background: white !important;
             color: black !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
         
-        .printable-log-container {
+        .printable-sheet {
             display: block !important;
             width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            background: white !important;
         }
-    }
-    
-    /* Styling for the visible log sheet preview on screen */
-    .printable-log-container {
-        display: block;
-        background-color: white;
-        color: black;
-        padding: 15px;
-        border-radius: 5px;
-        border: 1px solid #ddd;
-        margin-top: 20px;
-        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -244,8 +236,9 @@ if len(st.session_state.log_history) > 0:
                     st.rerun()
 
     df_logs = pd.DataFrame(st.session_state.log_history)
+    st.dataframe(df_logs, use_container_width=True)
 
-    # --- CLEAN PRINTABLE HTML TABLE VIEW ---
+    # --- DEDICATED CLEAN PRINTABLE SHEET CONTAINER ---
     html_rows = ""
     for idx, t in enumerate(st.session_state.log_history):
         html_rows += f"""
@@ -265,12 +258,12 @@ if len(st.session_state.log_history) > 0:
         """
 
     print_html = f"""
-        <div class="printable-log-container">
-            <h3 style="text-align: center; font-family: sans-serif; margin-bottom: 5px; color: #333;">Vehicle Usage Log Sheet</h3>
-            <p style="text-align: center; font-family: sans-serif; font-size: 11px; color: #666; margin-bottom: 15px;">Report generated on {datetime.today().strftime('%Y-%m-%d')}</p>
+        <div class="printable-sheet" style="padding: 10px;">
+            <h2 style="text-align: center; font-family: sans-serif; margin-bottom: 5px; color: #000;">High School Vehicle Usage Log</h2>
+            <p style="text-align: center; font-family: sans-serif; font-size: 11px; color: #333; margin-bottom: 15px;">Report generated on {datetime.today().strftime('%Y-%m-%d')}</p>
             <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px;">
                 <thead>
-                    <tr style="background-color: #f8f9fa; color: #333;">
+                    <tr style="background-color: #f2f2f2; color: #000;">
                         <th style="border: 1px solid #333; padding: 6px;">#</th>
                         <th style="border: 1px solid #333; padding: 6px;">Date</th>
                         <th style="border: 1px solid #333; padding: 6px;">Driver</th>
@@ -278,7 +271,7 @@ if len(st.session_state.log_history) > 0:
                         <th style="border: 1px solid #333; padding: 6px;">Destination</th>
                         <th style="border: 1px solid #333; padding: 6px;">Start Mi</th>
                         <th style="border: 1px solid #333; padding: 6px;">End Mi</th>
-                        <th style="xmlborder: 1px solid #333; padding: 6px;">Total Mi</th>
+                        <th style="border: 1px solid #333; padding: 6px;">Total Mi</th>
                         <th style="border: 1px solid #333; padding: 6px;">Start Time</th>
                         <th style="border: 1px solid #333; padding: 6px;">End Time</th>
                         <th style="border: 1px solid #333; padding: 6px;">Student Passengers</th>
@@ -297,5 +290,5 @@ if len(st.session_state.log_history) > 0:
         label="Download Log as CSV (Excel Compatible)",
         data=csv,
         file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text/csv",
+        mime="text/css" if False else "text/csv",
     )
