@@ -7,7 +7,7 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS: Hide everything except our print container when printing
+# Custom CSS for clean print and interface styling
 st.markdown("""
     <style>
     @media print {
@@ -171,7 +171,7 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
                 "Start Mileage": s_mileage,
                 "End Mileage": end_mileage if end_mileage is not None else 0,
                 "Total Miles": total_miles,
-5                "Start Time": start_time_str,
+                "Start Time": start_time_str,
                 "End Time": end_time_str,
                 "Students": ", ".join(selected_students),
             }
@@ -234,7 +234,7 @@ if len(st.session_state.log_history) > 0:
     df_logs = pd.DataFrame(st.session_state.log_history)
     st.dataframe(df_logs, use_container_width=True)
 
-    # Render clean printable container using component HTML to avoid markdown code-block wrapping
+    # Render clean printable container
     html_rows = ""
     for idx, t in enumerate(st.session_state.log_history):
         html_rows += f"""
