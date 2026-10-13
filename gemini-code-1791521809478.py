@@ -7,13 +7,13 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Initialize session state for storing logs, form reset counter, and print mode toggle
+# Initialize session state for storing logs, form reset counter, and individual print views
 if "log_history" not in st.session_state:
     st.session_state.log_history = []
 if "form_counter" not in st.session_state:
     st.session_state.form_counter = 0
-if "print_mode" not in st.session_state:
-    st.session_state.print_mode = False
+if "print_target_idx" not in st.session_state:
+    st.session_state.print_target_idx = None
 
 # Helper function to get current UTC-5 time in 12-hour string format + AM/PM
 def get_current_utc5_time():
@@ -65,32 +65,44 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- VIEW SWITCHER: PRINT MODE VS NORMAL FORM MODE ---
-if st.session_state.print_mode and len(st.session_state.log_history) > 0:
-    # --- DEDICATED PRINT VIEW SCREEN ---
-    st.title("🚐 Vehicle Usage Log Report")
-    st.markdown(f"**Report Generated:** {datetime.today().strftime('%Y-%m-%d')}")
+# --- INDIVIDUAL PRINT VIEW SCREEN ---
+if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
+    idx = st.session_state.print_target_idx
+    trip = st.session_state.log_history[idx]
+    
+    st.title("🚐 Vehicle Usage Log - Trip Receipt")
+    st.markdown(f"**Trip #{idx + 1} Report** (Generated: {datetime.today().strftime('%Y-%m-%d')})")
     st.markdown("---")
 
-    # Format dataframe cleanly for the report view
-    display_df = pd.DataFrame(st.session_state.log_history)
-    display_df.index = display_df.index + 1  # 1-based indexing for row numbers
-    st.dataframe(display_df, use_container_width=True)
+    # Clean vertical layout for full-page individual printing
+    st.markdown(f"### 📅 Date: {trip['Date']}")
+    st.markdown(f"**Driver:** {trip['Driver']}")
+    st.markdown(f"**Vehicle:** {trip['Vehicle']}")
+    st.markdown(f"**Destination / Purpose:** {trip['Destination / Purpose']}")
     
     st.markdown("---")
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1:
-        if st.button("⬅️ Back to Entry Form"):
-            st.session_state.print_mode = False
-            st.rerun()
-    with c_btn2:
-        csv = display_df.to_csv(index=True).encode("utf-8")
-        st.download_button(
-            label="📥 Download Log as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+    col_p1, col_p2, col_p3 = st.columns(3)
+    with col_p1:
+        st.metric("Starting Mileage", trip['Start Mileage'])
+    with col_p2:
+        st.metric("Ending Mileage", trip['End Mileage'])
+    with col_p3:
+        st.metric("Total Miles", trip['Total Miles'])
+
+    col_p4, col_p5 = st.columns(2)
+    with col_p4:
+        st.markdown(f"**Start Time:** {trip['Start Time']}")
+    with col_p5:
+        st.markdown(f"**End Time:** {trip['End Time'] if trip['End Time'] else 'N/A'}")
+
+    st.markdown("---")
+    st.markdown("#### 👥 Student Passengers")
+    st.info(trip['Students'])
+
+    st.markdown("---")
+    if st.button("⬅️ Back to Entry Form & Log History"):
+        st.session_state.print_target_idx = None
+        st.rerun()
 
 else:
     # --- NORMAL APP & FORM MODE ---
@@ -164,88 +176,3 @@ else:
                 st.error("Start Time is required.")
             else:
                 s_mileage = start_mileage
-                e_mileage = end_mileage if end_mileage is not None else s_mileage
-                total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
-
-                trip_entry = {
-                    "Date": trip_date.strftime("%Y-%m-%d"),
-                    "Driver": driver_name,
-                    "Vehicle": vehicle,
-                    "Destination / Purpose": destination,
-                    "Start Mileage": s_mileage,
-                    "End Mileage": end_mileage if end_mileage is not None else 0,
-                    "Total Miles": total_miles,
-                    "Start Time": start_time_str,
-                    "End Time": end_time_str,
-                    "Students": ", ".join(selected_students),
-                }
-
-                st.session_state.log_history.append(trip_entry)
-                st.session_state.form_counter += 1
-                st.success("Trip successfully logged!")
-                st.rerun()
-
-    # --- PRINTABLE & EDITABLE LOG SECTION ---
-    if len(st.session_state.log_history) > 0:
-        st.markdown("---")
-        st.subheader("📋 Log History & Print View")
-        
-        # Button to switch to dedicated print-only screen
-        if st.button("🖨️ Open Clean Print / View Sheet"):
-            st.session_state.print_mode = True
-            st.rerun()
-
-        st.info("Expand records below to update mileage or times later.")
-
-        # Interactive Editing section for recorded trips
-        for idx, trip in enumerate(st.session_state.log_history):
-            with st.expander(f"Trip #{idx + 1}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
-                with st.form(f"edit_form_{idx}"):
-                    try:
-                        default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
-                    except ValueError:
-                        default_d = datetime.today().date()
-                    
-                    e_date = st.date_input("Date", value=default_d, key=f"ed_date_{idx}")
-                    e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{idx}")
-                    
-                    existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] != 0 else None
-                    existing_em = int(trip["End Mileage"]) if trip["End Mileage"] != 0 else None
-                    
-                    e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{idx}")
-                    e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
-                    
-                    est_t, est_ap = parse_time_string(trip["Start Time"])
-                    if not est_t:
-                        est_t, est_ap = cur_t_str, cur_ap
-                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
-
-                    eet_t, eet_ap = parse_time_string(trip["End Time"])
-                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
-                    
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
-                        st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
-                        st.session_state.log_history[idx]["Start Mileage"] = calc_sm
-                        st.session_state.log_history[idx]["End Mileage"] = calc_em
-                        st.session_state.log_history[idx]["Start Time"] = e_start_time_str
-                        st.session_state.log_history[idx]["End Time"] = e_end_time_str
-                        st.session_state.log_history[idx]["Total Miles"] = calc_total
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        st.dataframe(df_logs, use_container_width=True)
-
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Log as CSV (Excel Compatible)",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
