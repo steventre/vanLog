@@ -7,24 +7,20 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS: Hide everything except our printable sheet when printing
+# Custom CSS: Hide everything except our print container when printing
 st.markdown("""
     <style>
     @media print {
-        /* Hide all UI elements, inputs, buttons, and headers */
-        header, footer, [data-testid="stSidebar"], [data-testid="stMainBlockContainer"] > *:not(:has(.printable-sheet)), .stButton, .stDownloadButton, [data-testid="stDataFrame"] {
+        header, footer, [data-testid="stSidebar"], [data-testid="stMainBlockContainer"] > *:not(:has(.printable-wrapper)), .stButton, .stDownloadButton, [data-testid="stDataFrame"] {
             display: none !important;
         }
-        
-        /* Ensure pristine white page background */
         body, html, [data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"] {
             background: white !important;
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
         }
-        
-        .printable-sheet {
+        .printable-wrapper {
             display: block !important;
             width: 100% !important;
             position: absolute !important;
@@ -175,7 +171,7 @@ with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
                 "Start Mileage": s_mileage,
                 "End Mileage": end_mileage if end_mileage is not None else 0,
                 "Total Miles": total_miles,
-                "Start Time": start_time_str,
+5                "Start Time": start_time_str,
                 "End Time": end_time_str,
                 "Students": ", ".join(selected_students),
             }
@@ -238,7 +234,7 @@ if len(st.session_state.log_history) > 0:
     df_logs = pd.DataFrame(st.session_state.log_history)
     st.dataframe(df_logs, use_container_width=True)
 
-    # --- DEDICATED CLEAN PRINTABLE SHEET CONTAINER ---
+    # Render clean printable container using component HTML to avoid markdown code-block wrapping
     html_rows = ""
     for idx, t in enumerate(st.session_state.log_history):
         html_rows += f"""
@@ -258,37 +254,39 @@ if len(st.session_state.log_history) > 0:
         """
 
     print_html = f"""
-        <div class="printable-sheet" style="padding: 10px;">
-            <h2 style="text-align: center; font-family: sans-serif; margin-bottom: 5px; color: #000;">High School Vehicle Usage Log</h2>
-            <p style="text-align: center; font-family: sans-serif; font-size: 11px; color: #333; margin-bottom: 15px;">Report generated on {datetime.today().strftime('%Y-%m-%d')}</p>
-            <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px;">
-                <thead>
-                    <tr style="background-color: #f2f2f2; color: #000;">
-                        <th style="border: 1px solid #333; padding: 6px;">#</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Date</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Driver</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Vehicle</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Destination</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Start Mi</th>
-                        <th style="border: 1px solid #333; padding: 6px;">End Mi</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Total Mi</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Start Time</th>
-                        <th style="border: 1px solid #333; padding: 6px;">End Time</th>
-                        <th style="border: 1px solid #333; padding: 6px;">Student Passengers</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {html_rows}
-                </tbody>
-            </table>
+        <div class="printable-wrapper">
+            <div class="printable-sheet" style="padding: 10px;">
+                <h2 style="text-align: center; font-family: sans-serif; margin-bottom: 5px; color: #000;">High School Vehicle Usage Log</h2>
+                <p style="text-align: center; font-family: sans-serif; font-size: 11px; color: #333; margin-bottom: 15px;">Report generated on {datetime.today().strftime('%Y-%m-%d')}</p>
+                <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 11px;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2; color: #000;">
+                            <th style="border: 1px solid #333; padding: 6px;">#</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Date</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Driver</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Vehicle</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Destination</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Start Mi</th>
+                            <th style="border: 1px solid #333; padding: 6px;">End Mi</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Total Mi</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Start Time</th>
+                            <th style="border: 1px solid #333; padding: 6px;">End Time</th>
+                            <th style="border: 1px solid #333; padding: 6px;">Student Passengers</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {html_rows}
+                    </tbody>
+                </table>
+            </div>
         </div>
     """
-    st.markdown(print_html, unsafe_allow_html=True)
+    st.components.v1.html(print_html, height=200, scrolling=True)
 
     csv = df_logs.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="Download Log as CSV (Excel Compatible)",
         data=csv,
         file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-        mime="text/css" if False else "text/csv",
+        mime="text/csv",
     )
