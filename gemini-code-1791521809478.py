@@ -72,50 +72,10 @@ if st.session_state.print_mode and len(st.session_state.log_history) > 0:
     st.markdown(f"**Report Generated:** {datetime.today().strftime('%Y-%m-%d')}")
     st.markdown("---")
 
-    # Render clean HTML table for printing
-    html_rows = ""
-    for idx, t in enumerate(st.session_state.log_history):
-        html_rows += f"""
-            <tr>
-                <td style="border: 1px solid #333; padding: 8px; text-align: center;">{idx + 1}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Date']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Driver']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Vehicle']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Destination / Purpose']}</td>
-                <td style="border: 1px solid #333; padding: 8px; text-align: right;">{t['Start Mileage']}</td>
-                <td style="border: 1px solid #333; padding: 8px; text-align: right;">{t['End Mileage']}</td>
-                <td style="border: 1px solid #333; padding: 8px; text-align: right;">{t['Total Miles']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Start Time']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['End Time']}</td>
-                <td style="border: 1px solid #333; padding: 8px;">{t['Students']}</td>
-            </tr>
-        """
-
-    print_sheet_html = f"""
-        <div style="font-family: sans-serif; color: black; background: white; padding: 20px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="border: 1px solid #333; padding: 8px;">#</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Date</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Driver</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Vehicle</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Destination</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Start Mi</th>
-                        <th style="border: 1px solid #333; padding: 8px;">End Mi</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Total Mi</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Start Time</th>
-                        <th style="border: 1px solid #333; padding: 8px;">End Time</th>
-                        <th style="border: 1px solid #333; padding: 8px;">Student Passengers</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {html_rows}
-                </tbody>
-            </table>
-        </div>
-    """
-    st.markdown(print_sheet_html, unsafe_allow_html=True)
+    # Format dataframe cleanly for the report view
+    display_df = pd.DataFrame(st.session_state.log_history)
+    display_df.index = display_df.index + 1  # 1-based indexing for row numbers
+    st.dataframe(display_df, use_container_width=True)
     
     st.markdown("---")
     c_btn1, c_btn2 = st.columns(2)
@@ -124,8 +84,7 @@ if st.session_state.print_mode and len(st.session_state.log_history) > 0:
             st.session_state.print_mode = False
             st.rerun()
     with c_btn2:
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
+        csv = display_df.to_csv(index=True).encode("utf-8")
         st.download_button(
             label="📥 Download Log as CSV",
             data=csv,
