@@ -8,13 +8,18 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to hide buttons, tips, and elements during print view
+# Custom CSS for print hiding and scrollable log history container
 st.markdown("""
     <style>
     @media print {
         .print-hide, [data-testid="stButton"] {
             display: none !important;
         }
+    }
+    .scrollable-log-container {
+        max-height: 600px;
+        overflow-y: auto;
+        padding-right: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -203,7 +208,7 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
         st.session_state.print_target_idx = None
         st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("💡 <em>Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.</em>", unsafe_allow_html=True)
+    st.markdown("💡 <em>Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.</em>")
     st.markdown('</div>', unsafe_allow_html=True)
 
 else:
@@ -305,10 +310,12 @@ else:
                 st.success("Trip successfully logged and saved to database!")
                 st.rerun()
 
-    # --- PRINTABLE & EDITABLE LOG SECTION ---
+    # --- PRINTABLE & EDITABLE LOG SECTION (Scrollable Container) ---
     if len(st.session_state.log_history) > 0:
         st.markdown("---")
-        st.subheader("📋 Log History (Newest First)")
+        st.subheader("📋 Log History")
+
+        st.markdown('<div class="scrollable-log-container">', unsafe_allow_html=True)
 
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
@@ -383,8 +390,7 @@ else:
                         st.success("Trip updated successfully!")
                         st.rerun()
 
-                # --- ALL ACTION BUTTONS GROUPED AT THE BOTTOM ---
-                st.markdown("---")
+                # --- ACTION BUTTONS DIRECTLY BELOW UPDATE (No dividing line) ---
                 col_act1, col_act2, col_act3 = st.columns(3)
                 
                 with col_act1:
@@ -403,6 +409,8 @@ else:
                         st.session_state.log_history = load_logs_from_db()
                         st.success(f"Trip #{trip['id']} deleted successfully!")
                         st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
         df_logs = pd.DataFrame(st.session_state.log_history)
         csv = df_logs.to_csv(index=False).encode("utf-8")
