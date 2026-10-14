@@ -8,11 +8,11 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to hide buttons and tips during print view
+# Custom CSS to hide buttons, tips, and elements during print view
 st.markdown("""
     <style>
     @media print {
-        .print-hide {
+        .print-hide, [data-testid="stButton"] {
             display: none !important;
         }
     }
@@ -193,13 +193,12 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
         st.markdown(f"**End Time:** {trip['End Time'] if trip['End Time'] else 'N/A'}")
 
     st.markdown("---")
-    # Bold student styling matching the rest of the receipt content (no blue background)
     st.markdown("#### 👥 Student Passengers")
     st.markdown(f"**{trip['Students']}**")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Back to Home button and tip wrapped in .print-hide so they disappear when printing
+    # Back to Home button and tip wrapped in print-hide class
     st.markdown('<div class="print-hide">', unsafe_allow_html=True)
     if st.button("⬅️ Back to Home / Entry Form"):
         st.session_state.print_target_idx = None
@@ -259,7 +258,6 @@ else:
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
             )
 
-        # "Set Now" button for End Time
         if st.form_submit_button("⏱️ Set End Time to Current Time Now"):
             st.session_state.main_end_time_val, st.session_state.main_end_ap_val = get_current_utc5_time()
             st.rerun()
@@ -314,31 +312,11 @@ else:
     if len(st.session_state.log_history) > 0:
         st.markdown("---")
         st.subheader("📋 Log History (Newest First) & Individual Trip Printouts")
-        st.info("Expand any trip below to edit details, set current time, delete the entry, or print its dedicated trip sheet.")
+        st.info("Expand any trip below to edit details or use the action buttons at the bottom to print, set current time, or delete the entry.")
 
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                b_col1, b_col2 = st.columns(2)
-                with b_col1:
-                    if st.button(f"🖨️ Print / View Sheet", key=f"print_btn_{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                with b_col2:
-                    if st.button(f"🗑️ Delete Trip #{trip['id']}", key=f"del_btn_{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
-
-                st.markdown("---")
-                
-                if st.button("⏱️ Set End Time to Current Time Now", key=f"btn_now_{trip['id']}"):
-                    cur_t, cur_a = get_current_utc5_time()
-                    st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                    st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                    st.success("End time updated to current time! Click 'Update Trip Entry' below to save.")
-
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
                         default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
@@ -400,6 +378,29 @@ else:
                         update_log_in_db(trip["id"], updated_trip)
                         st.session_state.log_history = load_logs_from_db()
                         st.success("Trip updated successfully!")
+                        st.rerun()
+
+                # --- ALL ACTION BUTTONS GROUPED AT THE BOTTOM ---
+                st.markdown("---")
+                col_act1, col_act2, col_act3 = st.columns(3)
+                
+                with col_act1:
+                    if st.button(f"🖨️ Print Sheet", key=f"print_btn_{trip['id']}"):
+                        st.session_state.print_target_idx = idx
+                        st.rerun()
+                
+                with col_act2:
+                    if st.button(f"⏱️ Set Now", key=f"btn_now_{trip['id']}"):
+                        cur_t, cur_a = get_current_utc5_time()
+                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
+                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
+                        st.success("End time set to current time! Click 'Update Trip Entry' above.")
+                
+                with col_act3:
+                    if st.button(f"🗑️ Delete", key=f"del_btn_{trip['id']}"):
+                        delete_log_from_db(trip['id'])
+                        st.session_state.log_history = load_logs_from_db()
+                        st.success(f"Trip #{trip['id']} deleted successfully!")
                         st.rerun()
 
         df_logs = pd.DataFrame(st.session_state.log_history)
