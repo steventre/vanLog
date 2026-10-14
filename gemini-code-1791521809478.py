@@ -409,4 +409,16 @@ else:
                     if st.button(f"🗑️ Delete", key=f"del_btn_{trip['id']}"):
                         delete_log_from_db(trip['id'])
                         st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{
+                        st.success(f"Trip #{trip['id']} deleted successfully!")
+                        st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_logs = pd.DataFrame(st.session_state.log_history)
+        csv = df_logs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Entire Log History as CSV",
+            data=csv,
+            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
