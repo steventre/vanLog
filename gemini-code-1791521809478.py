@@ -166,18 +166,18 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", "--"
 
-# Updated student list with Caleb Allen in Group B
+# Updated student list with Nate in Group A and Joel in Group B
 grouped_students = [
     "--- GROUP A ---",
     "Carmelo Behrendt",
     "Dorian Patterson",
     "Javion Townsend",
     "Jevon Smiley",
-    "Joel Afamefuna",
+    "Nathaniel Nelson",
     "--- GROUP B ---",
     "Caleb Allen",
     "Charles Mcintyre",
-    "Nathaniel Nelson",
+    "Joel Afamefuna",
     "Nicholas Gardner",
     "Tyler Evans",
     "Zachary McDaniels"
@@ -329,4 +329,16 @@ else:
             }
 
             save_log_to_db(trip_entry)
-            st.session
+            st.session_state.log_history = load_logs_from_db()
+            st.session_state.form_counter += 1
+            st.session_state.main_end_time_val = ""
+            st.session_state.main_end_ap_val = "--"
+            st.success("Trip successfully logged and saved to database!")
+            st.rerun()
+
+    # --- PRINTABLE & EDITABLE LOG SECTION (Compact Scrollable Container) ---
+    if len(st.session_state.log_history) > 0:
+        st.markdown("---")
+        st.subheader("📋 Log History")
+
+        st.markdown('<div class="scrollable-log-container
