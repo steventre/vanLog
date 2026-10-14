@@ -107,7 +107,7 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render time input safely inside forms
+# Helper function to render time inputs safely
 def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
     c1, c2 = st.columns([2, 1])
@@ -138,7 +138,23 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- INDIVIDUAL PRINT VIEW SCREEN (No Back button per request) ---
+# Student list definition
+students_list = [
+    "Carmelo Behrendt",
+    "Nick Gardner",
+    "Nate Nelson",
+    "Javion Townsend",
+    "Jevon Smiley",
+    "Droian Patterson",
+    "Charles Mcentyre",
+    "Tyler Evans",
+    "Joel Afumafane",
+    "Caleb Allen",
+    "Zach McDaniels",
+]
+sorted_students = sorted(students_list)
+
+# --- INDIVIDUAL PRINT VIEW SCREEN ---
 if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
     idx = st.session_state.print_target_idx
     trip = st.session_state.log_history[idx]
@@ -210,6 +226,18 @@ else:
             )
             end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
+        # Convenient "Set Now" button for End Time placed safely outside column nesting
+        if st.form_submit_button("⏱️ Set End Time to Current Time Now"):
+            st.session_state["main_end_time"] = cur_t_str
+            st.session_state["main_end_ap"] = cur_ap
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("Student Passengers")
+        selected_students = st.multiselect(
+            "Select Students on Trip (Alphabetical, Required)", sorted_students, key="main_students"
+        )
+
         submitted = st.form_submit_button("Save Trip Entry")
 
         if submitted:
@@ -217,6 +245,8 @@ else:
                 st.error("Driver Name is required.")
             elif start_mileage is None:
                 st.error("Starting Mileage is required.")
+            elif not selected_students:
+                st.error("Please select at least one student passenger.")
             elif not start_time_str:
                 st.error("Start Time is required.")
             else:
@@ -234,7 +264,7 @@ else:
                     "Total Miles": total_miles,
                     "Start Time": start_time_str,
                     "End Time": end_time_str,
-                    "Students": "None logged",
+                    "Students": ", ".join(selected_students),
                 }
 
                 save_log_to_db(trip_entry)
@@ -280,35 +310,12 @@ else:
                     eet_t, eet_ap = parse_time_string(trip["End Time"])
                     e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
                     
+                    # Pre-select existing students in edit mode multiselect
+                    current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in sorted_students]
+                    e_students = st.multiselect("Student Passengers", sorted_students, default=current_trip_students, key=f"ed_students_{idx}")
+
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
                         calc_sm = e_start_m if e_start_m is not None else 0
                         calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": e_start_time_str,
-                            "End Time": e_end_time_str,
-                            "Students": trip["Students"]
-                        }
-
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+                        calc_total =
