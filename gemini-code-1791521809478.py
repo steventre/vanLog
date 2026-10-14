@@ -245,7 +245,7 @@ else:
                 start_ap_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if st.session_state.main_start_ap_val == "AM" else 1, key=f"main_start_ap_{st.session_state.form_counter}")
 
             start_mileage = st.number_input(
-                "Starting Mileage (Required)", min_value=0, value=0, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}"
+                "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}"
             )
 
         with col4:
@@ -259,7 +259,7 @@ else:
                 end_ap_val = st.selectbox("End AM/PM", end_ap_options, index=end_ap_idx, key=f"main_end_ap_{st.session_state.form_counter}")
 
             end_mileage = st.number_input(
-                "Ending Mileage (Optional)", min_value=0, value=0, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
+                "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
             )
 
         if st.form_submit_button("⏱️ Set End Time to Current Time Now"):
@@ -280,12 +280,14 @@ else:
 
             if not driver_name.strip():
                 st.error("Driver Name is required.")
+            elif start_mileage is None:
+                st.error("Starting Mileage is required.")
             elif not selected_students:
                 st.error("Please select at least one student passenger.")
             elif not start_time_str:
                 st.error("Start Time is required.")
             else:
-                s_mileage = int(start_mileage) if start_mileage is not None else 0
+                s_mileage = int(start_mileage)
                 e_mileage = int(end_mileage) if end_mileage is not None else s_mileage
                 total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
 
@@ -336,8 +338,8 @@ else:
                     e_date = st.date_input("Date", value=default_d, key=f"ed_date_{trip['id']}")
                     e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
                     
-                    existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None else 0
-                    existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None else 0
+                    existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
+                    existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
                     
                     e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
                     e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
