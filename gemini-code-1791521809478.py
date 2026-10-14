@@ -8,16 +8,26 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for print styling and compact scrollable log history container
+# Custom CSS for bulletproof mobile print visibility and compact scrollable log history container
 st.markdown("""
     <style>
     @media print {
-        .print-hide, [data-testid="stButton"] {
+        .print-hide, [data-testid="stButton"], header, footer {
             display: none !important;
         }
-        body {
-            font-size: 14px !important;
+        body, .print-receipt {
+            display: block !important;
+            visibility: visible !important;
             color: #000 !important;
+            background: #fff !important;
+        }
+        .print-students-box {
+            font-size: 16px !important;
+            font-weight: bold !important;
+            color: #000 !important;
+            border: 1px solid #000 !important;
+            padding: 10px !important;
+            margin-top: 10px !important;
         }
     }
     .scrollable-log-container {
@@ -177,6 +187,9 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     idx = st.session_state.print_target_idx
     trip = st.session_state.log_history[idx]
     
+    # Wrap entire printable receipt in an explicit print container
+    st.markdown('<div class="print-receipt">', unsafe_allow_html=True)
+    
     st.title("🚐 Vehicle Usage Log - Trip Receipt")
     st.markdown(f"**Trip #{trip['id']} Report** (Generated: {datetime.today().strftime('%Y-%m-%d')})")
     st.markdown("---")
@@ -185,6 +198,11 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     st.markdown(f"**Driver:** {trip['Driver']}")
     st.markdown(f"**Vehicle:** {trip['Vehicle']}")
     st.markdown(f"**Destination / Purpose:** {trip['Destination / Purpose']}")
+    
+    st.markdown("---")
+    st.markdown("#### 👥 Student Passengers")
+    # Render students prominently right near the top so mobile print previews don't truncate it
+    st.markdown(f'<div class="print-students-box"><strong>{trip["Students"]}</strong></div>', unsafe_allow_html=True)
     
     st.markdown("---")
     col_p1, col_p2, col_p3 = st.columns(3)
@@ -201,10 +219,7 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     with col_p5:
         st.markdown(f"**End Time:** {trip['End Time'] if trip['End Time'] else 'N/A'}")
 
-    st.markdown("---")
-    st.markdown("#### 👥 Student Passengers")
-    # Render students using direct HTML to guarantee visibility on mobile print engines
-    st.markdown(f"<p style='font-size: 15px; font-weight: bold;'>{trip['Students']}</p>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # End print-receipt div
     
     st.markdown("<br>", unsafe_allow_html=True)
     
