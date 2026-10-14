@@ -318,4 +318,31 @@ else:
                     if e_saved:
                         calc_sm = e_start_m if e_start_m is not None else 0
                         calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total =
+                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+
+                        updated_trip = {
+                            "Date": e_date.strftime("%Y-%m-%d"),
+                            "Driver": trip["Driver"],
+                            "Vehicle": trip["Vehicle"],
+                            "Destination / Purpose": e_dest,
+                            "Start Mileage": calc_sm,
+                            "End Mileage": calc_em,
+                            "Total Miles": calc_total,
+                            "Start Time": e_start_time_str,
+                            "End Time": e_end_time_str,
+                            "Students": ", ".join(e_students) if e_students else "None logged"
+                        }
+
+                        update_log_in_db(trip["id"], updated_trip)
+                        st.session_state.log_history = load_logs_from_db()
+                        st.success("Trip updated successfully!")
+                        st.rerun()
+
+        df_logs = pd.DataFrame(st.session_state.log_history)
+        csv = df_logs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Entire Log History as CSV",
+            data=csv,
+            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
