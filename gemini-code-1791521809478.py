@@ -198,7 +198,6 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Back to Home button and tip wrapped in print-hide class
     st.markdown('<div class="print-hide">', unsafe_allow_html=True)
     if st.button("⬅️ Back to Home / Entry Form"):
         st.session_state.print_target_idx = None
@@ -301,26 +300,3 @@ else:
                 }
 
                 save_log_to_db(trip_entry)
-                st.session_state.log_history = load_logs_from_db()
-                st.session_state.form_counter += 1
-                st.session_state.main_end_time_val = ""
-                st.session_state.main_end_ap_val = "--"
-                st.success("Trip successfully logged and saved to database!")
-                st.rerun()
-
-    # --- PRINTABLE & EDITABLE LOG SECTION ---
-    if len(st.session_state.log_history) > 0:
-        st.markdown("---")
-        st.subheader("📋 Log History (Newest First) & Individual Trip Printouts")
-        st.info("Expand any trip below to edit details or use the action buttons at the bottom to print, set current time, or delete the entry.")
-
-        for idx, trip in enumerate(st.session_state.log_history):
-            with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
-                
-                # Check for "Set Now" trigger stored in session state before rendering form
-                set_now_key_flag = f"trigger_now_{trip['id']}"
-                if st.session_state.get(set_now_key_flag, False):
-                    cur_t, cur_a = get_current_utc5_time()
-                    st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                    st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                    st.session_state
