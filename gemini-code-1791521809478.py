@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import sqlite3
 import pandas as pd
 import streamlit as st
 
@@ -7,9 +8,83 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Initialize session state for storing logs, form reset counter, and individual print views
+# --- DATABASE SETUP (Persistence across refreshes) ---
+def init_db():
+    conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            driver TEXT,
+            vehicle TEXT,
+            destination TEXT,
+            start_mileage INTEGER,
+            end_mileage INTEGER,
+            total_miles INTEGER,
+            start_time TEXT,
+            end_time TEXT,
+            students TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def load_logs_from_db():
+    conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
+    df = pd.read_sql_query("SELECT * FROM logs", conn)
+    conn.close()
+    
+    logs = []
+    for _, row in df.iterrows():
+        logs.append({
+            "id": row["id"],
+            "Date": row["date"],
+            "Driver": row["driver"],
+            "Vehicle": row["vehicle"],
+            "Destination / Purpose": row["destination"],
+            "Start Mileage": row["start_mileage"],
+            "End Mileage": row["end_mileage"],
+            "Total Miles": row["total_miles"],
+            "Start Time": row["start_time"],
+            "End Time": row["end_time"],
+            "Students": row["students"]
+        })
+    return logs
+
+def save_log_to_db(trip):
+    conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO logs (date, driver, vehicle, destination, start_mileage, end_mileage, total_miles, start_time, end_time, students)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        trip["Date"], trip["Driver"], trip["Vehicle"], trip["Destination / Purpose"],
+        trip["Start Mileage"], trip["End Mileage"], trip["Total Miles"],
+        trip["Start Time"], trip["End Time"], trip["Students"]
+    ))
+    conn.commit()
+    conn.close()
+
+def update_log_in_db(trip_id, trip):
+    conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE logs SET date=?, driver=?, vehicle=?, destination=?, start_mileage=?, end_mileage=?, total_miles=?, start_time=?, end_time=?, students=?
+        WHERE id=?
+    """, (
+        trip["Date"], trip["Driver"], trip["Vehicle"], trip["Destination / Purpose"],
+        trip["Start Mileage"], trip["End Mileage"], trip["Total Miles"],
+        trip["Start Time"], trip["End Time"], trip["Students"], trip_id
+    ))
+    conn.commit()
+    conn.close()
+
+# Initialize session state from database
 if "log_history" not in st.session_state:
-    st.session_state.log_history = []
+    st.session_state.log_history = load_logs_from_db()
 if "form_counter" not in st.session_state:
     st.session_state.form_counter = 0
 if "print_target_idx" not in st.session_state:
@@ -32,23 +107,33 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function ensuring identical layout (HH:MM text box + AM/PM dropdown) for both start and end times
-def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
+# Helper function to render time input, with optional 'Now' button for convenience
+def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False, show_now_btn=False):
     st.markdown(f"**{label} (UTC-5)**")
-    c1, c2 = st.columns([2, 1])
+    
+    if show_now_btn:
+        c1, c2, c3 = st.columns([2, 1, 1])
+    else:
+        c1, c2 = st.columns([2, 1])
     
     with c1:
         t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="HH:MM", key=f"{key_prefix}_time")
     with c2:
         ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
-        
         if not default_ampm or default_ampm not in ap_options:
             default_ap_idx = 0 if allow_blank else 0
         else:
             default_ap_idx = ap_options.index(default_ampm)
-            
         ap = st.selectbox("AM/PM", ap_options, index=default_ap_idx, key=f"{key_prefix}_ap")
         
+    if show_now_btn:
+        with c3:
+            st.markdown("<br>", unsafe_allow_html=True) # alignment spacing
+            if st.button("Set Now", key=f"{key_prefix}_now_btn"):
+                st.session_state[f"{key_prefix}_time"] = cur_t_str
+                st.session_state[f"{key_prefix}_ap"] = cur_ap
+                st.rerun()
+
     if not t_val.strip() or ap == "--":
         return ""
     return f"{t_val.strip()} {ap}"
@@ -65,7 +150,7 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", ""
 
-# --- INDIVIDUAL PRINT VIEW SCREEN ---
+# --- INDIVIDUAL PRINT VIEW SCREEN (No Back button per request) ---
 if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
     idx = st.session_state.print_target_idx
     trip = st.session_state.log_history[idx]
@@ -74,7 +159,6 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     st.markdown(f"**Trip #{idx + 1} Report** (Generated: {datetime.today().strftime('%Y-%m-%d')})")
     st.markdown("---")
 
-    # Clean vertical layout for full-page individual printing
     st.markdown(f"### 📅 Date: {trip['Date']}")
     st.markdown(f"**Driver:** {trip['Driver']}")
     st.markdown(f"**Vehicle:** {trip['Vehicle']}")
@@ -98,11 +182,8 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     st.markdown("---")
     st.markdown("#### 👥 Student Passengers")
     st.info(trip['Students'])
-
-    st.markdown("---")
-    if st.button("⬅️ Back to Entry Form & Log History"):
-        st.session_state.print_target_idx = None
-        st.rerun()
+    
+    st.info("Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.")
 
 else:
     # --- NORMAL APP & FORM MODE ---
@@ -133,13 +214,14 @@ else:
             start_mileage = st.number_input(
                 "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d"
             )
-            start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False)
+            start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False, show_now_btn=False)
 
         with col4:
             end_mileage = st.number_input(
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
             )
-            end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
+            # End time includes the convenient "Set Now" button option
+            end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True, show_now_btn=True)
 
         st.markdown("---")
         st.subheader("Student Passengers")
@@ -192,22 +274,21 @@ else:
                     "Students": ", ".join(selected_students),
                 }
 
-                st.session_state.log_history.append(trip_entry)
+                save_log_to_db(trip_entry)
+                st.session_state.log_history = load_logs_from_db()
                 st.session_state.form_counter += 1
-                st.success("Trip successfully logged!")
+                st.success("Trip successfully logged and saved to database!")
                 st.rerun()
 
     # --- PRINTABLE & EDITABLE LOG SECTION ---
     if len(st.session_state.log_history) > 0:
         st.markdown("---")
         st.subheader("📋 Log History & Individual Trip Printouts")
-        st.info("Expand any trip below to edit details or click its dedicated print button to view and print that specific log as its own page.")
+        st.info("Expand any trip below to edit details or click its dedicated print button to view and print that specific log on its own page.")
 
-        # Interactive Editing & Individual Print buttons for each recorded trip
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip #{idx + 1}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # Dedicated button to open full-page print view for this specific entry
                 if st.button(f"🖨️ Print / View Trip #{idx + 1} Sheet", key=f"print_btn_{idx}"):
                     st.session_state.print_target_idx = idx
                     st.rerun()
@@ -231,10 +312,10 @@ else:
                     est_t, est_ap = parse_time_string(trip["Start Time"])
                     if not est_t:
                         est_t, est_ap = cur_t_str, cur_ap
-                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
+                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False, show_now_btn=False)
 
                     eet_t, eet_ap = parse_time_string(trip["End Time"])
-                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
+                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True, show_now_btn=True)
                     
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
@@ -242,17 +323,24 @@ else:
                         calc_em = e_end_m if e_end_m is not None else 0
                         calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
 
-                        st.session_state.log_history[idx]["Date"] = e_date.strftime("%Y-%m-%d")
-                        st.session_state.log_history[idx]["Destination / Purpose"] = e_dest
-                        st.session_state.log_history[idx]["Start Mileage"] = calc_sm
-                        st.session_state.log_history[idx]["End Mileage"] = calc_em
-                        st.session_state.log_history[idx]["Start Time"] = e_start_time_str
-                        st.session_state.log_history[idx]["End Time"] = e_end_time_str
-                        st.session_state.log_history[idx]["Total Miles"] = calc_total
+                        updated_trip = {
+                            "Date": e_date.strftime("%Y-%m-%d"),
+                            "Driver": trip["Driver"],
+                            "Vehicle": trip["Vehicle"],
+                            "Destination / Purpose": e_dest,
+                            "Start Mileage": calc_sm,
+                            "End Mileage": calc_em,
+                            "Total Miles": calc_total,
+                            "Start Time": e_start_time_str,
+                            "End Time": e_end_time_str,
+                            "Students": trip["Students"]
+                        }
+
+                        update_log_in_db(trip["id"], updated_trip)
+                        st.session_state.log_history = load_logs_from_db()
                         st.success("Trip updated successfully!")
                         st.rerun()
 
-        # Master CSV export for all logs combined
         df_logs = pd.DataFrame(st.session_state.log_history)
         csv = df_logs.to_csv(index=False).encode("utf-8")
         st.download_button(
