@@ -149,10 +149,10 @@ if "main_start_time_val" not in st.session_state:
     st.session_state.main_start_time_val = cur_t_str
 if "main_start_ap_val" not in st.session_state:
     st.session_state.main_start_ap_val = cur_ap
-if "main_end_time_val" not in st.session_state:
-    st.session_state.main_end_time_val = ""
-if "main_end_ap_val" not in st.session_state:
-    st.session_state.main_end_ap_val = "--"
+if "main_end_t" not in st.session_state:
+    st.session_state.main_end_t = ""
+if "main_end_ap" not in st.session_state:
+    st.session_state.main_end_ap = "--"
 
 # Helper function to parse existing time string back into time value and AM/PM for editing
 def parse_time_string(time_str):
@@ -269,11 +269,11 @@ else:
             st.markdown("**End Time (UTC-5)**")
             ec1, ec2 = st.columns([2, 1])
             with ec1:
-                end_t_val = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
+                end_t_val = st.text_input("End Time (HH:MM)", key="main_end_t", placeholder="HH:MM")
             with ec2:
                 end_ap_options = ["--", "AM", "PM"]
-                end_ap_idx = end_ap_options.index(st.session_state.main_end_ap_val) if st.session_state.main_end_ap_val in end_ap_options else 0
-                end_ap_val = st.selectbox("End AM/PM", end_ap_options, index=end_ap_idx, key=f"main_end_ap_{st.session_state.form_counter}")
+                end_ap_idx = end_ap_options.index(st.session_state.main_end_ap) if st.session_state.main_end_ap in end_ap_options else 0
+                end_ap_val = st.selectbox("End AM/PM", end_ap_options, index=end_ap_idx, key="main_end_ap_select")
 
             end_mileage = st.number_input(
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
@@ -290,13 +290,15 @@ else:
     # --- INSTANT "SET NOW" BUTTON OUTSIDE THE FORM ---
     if st.button("⏱️ Set End Time to Current Time Now"):
         cur_t, cur_a = get_current_utc5_time()
-        st.session_state.main_end_time_val = cur_t
-        st.session_state.main_end_ap_val = cur_a
+        st.session_state.main_end_t = cur_t
+        st.session_state.main_end_ap = cur_a
         st.rerun()
 
     if submitted:
+        # Sync selectbox state back
+        final_end_ap = st.session_state.get("main_end_ap_select", "--")
         start_time_str = f"{start_t_val.strip()} {start_ap_val}" if start_t_val.strip() else ""
-        end_time_str = f"{end_t_val.strip()} {end_ap_val}" if end_t_val.strip() and end_ap_val != "--" else ""
+        end_time_str = f"{end_t_val.strip()} {final_end_ap}" if end_t_val.strip() and final_end_ap != "--" else ""
 
         if not driver_name.strip():
             st.error("Driver Name is required.")
@@ -327,8 +329,8 @@ else:
             save_log_to_db(trip_entry)
             st.session_state.log_history = load_logs_from_db()
             st.session_state.form_counter += 1
-            st.session_state.main_end_time_val = ""
-            st.session_state.main_end_ap_val = "--"
+            st.session_state.main_end_t = ""
+            st.session_state.main_end_ap = "--"
             st.success("Trip successfully logged and saved to database!")
             st.rerun()
 
@@ -407,7 +409,7 @@ else:
                             "Students": ", ".join(e_students) if e_students else "None logged"
                         }
 
-                        update_log_in_db(trip["id"], updated_updated_trip := updated_trip)
+                        update_log_in_db(trip["id"], updated_trip)
                         st.session_state.log_history = load_logs_from_db()
                         st.success("Trip updated successfully!")
                         st.rerun()
