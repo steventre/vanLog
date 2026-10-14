@@ -8,6 +8,17 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
+# Custom CSS to hide buttons and tips during print view
+st.markdown("""
+    <style>
+    @media print {
+        .print-hide {
+            display: none !important;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- DATABASE SETUP (Persistence across refreshes) ---
 def init_db():
     conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
@@ -34,7 +45,6 @@ init_db()
 
 def load_logs_from_db():
     conn = sqlite3.connect("vehicle_logs.db", check_same_thread=False)
-    # Order by id DESC so newest entries appear at the top
     df = pd.read_sql_query("SELECT * FROM logs ORDER BY id DESC", conn)
     conn.close()
     
@@ -183,10 +193,20 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
         st.markdown(f"**End Time:** {trip['End Time'] if trip['End Time'] else 'N/A'}")
 
     st.markdown("---")
+    # Bold student styling matching the rest of the receipt content (no blue background)
     st.markdown("#### 👥 Student Passengers")
-    st.info(trip['Students'])
+    st.markdown(f"**{trip['Students']}**")
     
-    st.info("Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Back to Home button and tip wrapped in .print-hide so they disappear when printing
+    st.markdown('<div class="print-hide">', unsafe_allow_html=True)
+    if st.button("⬅️ Back to Home / Entry Form"):
+        st.session_state.print_target_idx = None
+        st.rerun()
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("💡 <em>Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.</em>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     # --- NORMAL APP & FORM MODE ---
@@ -299,7 +319,6 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # Action buttons side-by-side: Print view & Delete
                 b_col1, b_col2 = st.columns(2)
                 with b_col1:
                     if st.button(f"🖨️ Print / View Sheet", key=f"print_btn_{trip['id']}"):
@@ -314,11 +333,6 @@ else:
 
                 st.markdown("---")
                 
-                # Check if user clicked the edit-form "Set Now" button for this specific trip
-                edit_now_key = f"edit_set_now_{trip['id']}"
-                if edit_now_key not in st.session_state:
-                    st.session_state[edit_now_key] = False
-
                 if st.button("⏱️ Set End Time to Current Time Now", key=f"btn_now_{trip['id']}"):
                     cur_t, cur_a = get_current_utc5_time()
                     st.session_state[f"ed_et_{trip['id']}"] = cur_t
@@ -337,63 +351,4 @@ else:
                     existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] != 0 else None
                     existing_em = int(trip["End Mileage"]) if trip["End Mileage"] != 0 else None
                     
-                    e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
-                    e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
-                    
-                    est_t, est_ap = parse_time_string(trip["Start Time"])
-                    eet_t, eet_ap = parse_time_string(trip["End Time"])
-
-                    st.markdown("**Start Time (UTC-5)**")
-                    esc1, esc2 = st.columns([2, 1])
-                    with esc1:
-                        ed_st_val = st.text_input("Start Time", value=est_t, key=f"ed_st_{trip['id']}")
-                    with esc2:
-                        ed_sa_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if est_ap == "AM" else 1, key=f"ed_sa_{trip['id']}")
-
-                    st.markdown("**End Time (UTC-5)**")
-                    eec1, eec2 = st.columns([2, 1])
-                    with eec1:
-                        # Pulls from session state if updated by the "Set Now" button above
-                        default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
-                        ed_et_val = st.text_input("End Time", value=default_et_val, key=f"ed_et_{trip['id']}")
-                    with eec2:
-                        ed_ea_opts = ["--", "AM", "PM"]
-                        default_ea_val = st.session_state.get(f"ed_ea_{trip['id']}", eet_ap)
-                        ed_ea_idx = ed_ea_opts.index(default_ea_val) if default_ea_val in ed_ea_opts else 0
-                        ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{trip['id']}")
-                    
-                    current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in sorted_students]
-                    e_students = st.multiselect("Student Passengers", sorted_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
-
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
-                            "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
-                            "Students": ", ".join(e_students) if e_students else "None logged"
-                        }
-
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+                    e_start_m =
