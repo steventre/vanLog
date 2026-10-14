@@ -107,14 +107,10 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render time input, with optional 'Now' button for convenience
-def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False, show_now_btn=False):
+# Helper function to render time input safely inside forms
+def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
     st.markdown(f"**{label} (UTC-5)**")
-    
-    if show_now_btn:
-        c1, c2, c3 = st.columns([2, 1, 1])
-    else:
-        c1, c2 = st.columns([2, 1])
+    c1, c2 = st.columns([2, 1])
     
     with c1:
         t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="HH:MM", key=f"{key_prefix}_time")
@@ -126,14 +122,6 @@ def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank
             default_ap_idx = ap_options.index(default_ampm)
         ap = st.selectbox("AM/PM", ap_options, index=default_ap_idx, key=f"{key_prefix}_ap")
         
-    if show_now_btn:
-        with c3:
-            st.markdown("<br>", unsafe_allow_html=True) # alignment spacing
-            if st.button("Set Now", key=f"{key_prefix}_now_btn"):
-                st.session_state[f"{key_prefix}_time"] = cur_t_str
-                st.session_state[f"{key_prefix}_ap"] = cur_ap
-                st.rerun()
-
     if not t_val.strip() or ap == "--":
         return ""
     return f"{t_val.strip()} {ap}"
@@ -214,36 +202,13 @@ else:
             start_mileage = st.number_input(
                 "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d"
             )
-            start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False, show_now_btn=False)
+            start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False)
 
         with col4:
             end_mileage = st.number_input(
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
             )
-            # End time includes the convenient "Set Now" button option
-            end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True, show_now_btn=True)
-
-        st.markdown("---")
-        st.subheader("Student Passengers")
-
-        students_list = [
-            "Carmelo Behrendt",
-            "Nick Gardner",
-            "Nate Nelson",
-            "Javion Townsend",
-            "Jevon Smiley",
-            "Droian Patterson",
-            "Charles Mcentyre",
-            "Tyler Evans",
-            "Joel Afumafane",
-            "Caleb Allen",
-            "Zach McDaniels",
-        ]
-        sorted_students = sorted(students_list)
-
-        selected_students = st.multiselect(
-            "Select Students on Trip (Alphabetical, Required)", sorted_students
-        )
+            end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
         submitted = st.form_submit_button("Save Trip Entry")
 
@@ -252,8 +217,6 @@ else:
                 st.error("Driver Name is required.")
             elif start_mileage is None:
                 st.error("Starting Mileage is required.")
-            elif not selected_students:
-                st.error("Please select at least one student passenger.")
             elif not start_time_str:
                 st.error("Start Time is required.")
             else:
@@ -271,7 +234,7 @@ else:
                     "Total Miles": total_miles,
                     "Start Time": start_time_str,
                     "End Time": end_time_str,
-                    "Students": ", ".join(selected_students),
+                    "Students": "None logged",
                 }
 
                 save_log_to_db(trip_entry)
@@ -312,10 +275,10 @@ else:
                     est_t, est_ap = parse_time_string(trip["Start Time"])
                     if not est_t:
                         est_t, est_ap = cur_t_str, cur_ap
-                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False, show_now_btn=False)
+                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
 
                     eet_t, eet_ap = parse_time_string(trip["End Time"])
-                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True, show_now_btn=True)
+                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
                     
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
