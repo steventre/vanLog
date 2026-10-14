@@ -107,36 +107,27 @@ def get_current_utc5_time():
 
 cur_t_str, cur_ap = get_current_utc5_time()
 
-# Helper function to render time inputs safely
-def render_time_input(label, default_time, default_ampm, key_prefix, allow_blank=False):
-    st.markdown(f"**{label} (UTC-5)**")
-    c1, c2 = st.columns([2, 1])
-    
-    with c1:
-        t_val = st.text_input("Time (HH:MM)", value=default_time, placeholder="HH:MM", key=f"{key_prefix}_time")
-    with c2:
-        ap_options = ["--", "AM", "PM"] if allow_blank else ["AM", "PM"]
-        if not default_ampm or default_ampm not in ap_options:
-            default_ap_idx = 0 if allow_blank else 0
-        else:
-            default_ap_idx = ap_options.index(default_ampm)
-        ap = st.selectbox("AM/PM", ap_options, index=default_ap_idx, key=f"{key_prefix}_ap")
-        
-    if not t_val.strip() or ap == "--":
-        return ""
-    return f"{t_val.strip()} {ap}"
+# Initialize default session state values for main form times if not present
+if "main_start_time_val" not in st.session_state:
+    st.session_state.main_start_time_val = cur_t_str
+if "main_start_ap_val" not in st.session_state:
+    st.session_state.main_start_ap_val = cur_ap
+if "main_end_time_val" not in st.session_state:
+    st.session_state.main_end_time_val = ""
+if "main_end_ap_val" not in st.session_state:
+    st.session_state.main_end_ap_val = "--"
 
 # Helper function to parse existing time string back into time value and AM/PM for editing
 def parse_time_string(time_str):
     if not time_str:
-        return "", ""
+        return "", "--"
     try:
         parts = time_str.split()
         t_val = parts[0]
         ap = parts[1] if len(parts) > 1 else "AM"
         return t_val, ap
     except (ValueError, IndexError):
-        return "", ""
+        return "", "--"
 
 # Student list definition
 students_list = [
@@ -215,21 +206,34 @@ else:
 
         col3, col4 = st.columns(2)
         with col3:
+            st.markdown("**Start Time (UTC-5)**")
+            sc1, sc2 = st.columns([2, 1])
+            with sc1:
+                start_t_val = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, key="main_start_t")
+            with sc2:
+                start_ap_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if st.session_state.main_start_ap_val == "AM" else 1, key="main_start_ap")
+
             start_mileage = st.number_input(
                 "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d"
             )
-            start_time_str = render_time_input("Start Time", cur_t_str, cur_ap, "main_start", allow_blank=False)
 
         with col4:
+            st.markdown("**End Time (UTC-5)**")
+            ec1, ec2 = st.columns([2, 1])
+            with ec1:
+                end_t_val = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key="main_end_t")
+            with ec2:
+                end_ap_options = ["--", "AM", "PM"]
+                end_ap_idx = end_ap_options.index(st.session_state.main_end_ap_val) if st.session_state.main_end_ap_val in end_ap_options else 0
+                end_ap_val = st.selectbox("End AM/PM", end_ap_options, index=end_ap_idx, key="main_end_ap")
+
             end_mileage = st.number_input(
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d"
             )
-            end_time_str = render_time_input("End Time", "", "--", "main_end", allow_blank=True)
 
-        # Convenient "Set Now" button for End Time placed safely outside column nesting
+        # "Set Now" button for End Time
         if st.form_submit_button("⏱️ Set End Time to Current Time Now"):
-            st.session_state["main_end_time"] = cur_t_str
-            st.session_state["main_end_ap"] = cur_ap
+            st.session_state.main_end_time_val, st.session_state.main_end_ap_val = get_current_utc5_time()
             st.rerun()
 
         st.markdown("---")
@@ -241,6 +245,9 @@ else:
         submitted = st.form_submit_button("Save Trip Entry")
 
         if submitted:
+            start_time_str = f"{start_t_val.strip()} {start_ap_val}" if start_t_val.strip() else ""
+            end_time_str = f"{end_t_val.strip()} {end_ap_val}" if end_t_val.strip() and end_ap_val != "--" else ""
+
             if not driver_name.strip():
                 st.error("Driver Name is required.")
             elif start_mileage is None:
@@ -303,14 +310,24 @@ else:
                     e_end_m = st.number_input("End Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{idx}")
                     
                     est_t, est_ap = parse_time_string(trip["Start Time"])
-                    if not est_t:
-                        est_t, est_ap = cur_t_str, cur_ap
-                    e_start_time_str = render_time_input("Start Time", est_t, est_ap, f"ed_start_{idx}", allow_blank=False)
-
                     eet_t, eet_ap = parse_time_string(trip["End Time"])
-                    e_end_time_str = render_time_input("End Time", eet_t, eet_ap, f"ed_end_{idx}", allow_blank=True)
+
+                    st.markdown("**Start Time (UTC-5)**")
+                    esc1, esc2 = st.columns([2, 1])
+                    with esc1:
+                        ed_st_val = st.text_input("Start Time", value=est_t, key=f"ed_st_{idx}")
+                    with esc2:
+                        ed_sa_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if est_ap == "AM" else 1, key=f"ed_sa_{idx}")
+
+                    st.markdown("**End Time (UTC-5)**")
+                    eec1, eec2 = st.columns([2, 1])
+                    with eec1:
+                        ed_et_val = st.text_input("End Time", value=eet_t, key=f"ed_et_{idx}")
+                    with eec2:
+                        ed_ea_opts = ["--", "AM", "PM"]
+                        ed_ea_idx = ed_ea_opts.index(eet_ap) if eet_ap in ed_ea_opts else 0
+                        ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{idx}")
                     
-                    # Pre-select existing students in edit mode multiselect
                     current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in sorted_students]
                     e_students = st.multiselect("Student Passengers", sorted_students, default=current_trip_students, key=f"ed_students_{idx}")
 
@@ -328,12 +345,12 @@ else:
                             "Start Mileage": calc_sm,
                             "End Mileage": calc_em,
                             "Total Miles": calc_total,
-                            "Start Time": e_start_time_str,
-                            "End Time": e_end_time_str,
+                            "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
+                            "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
                             "Students": ", ".join(e_students) if e_students else "None logged"
                         }
 
-                        update_log_in_db(trip["id"], updated_trip)
+                        update_log_in_db(trip["id"], updated_updated := updated_trip)
                         st.session_state.log_history = load_logs_from_db()
                         st.success("Trip updated successfully!")
                         st.rerun()
