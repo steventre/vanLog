@@ -279,12 +279,6 @@ else:
                 "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
             )
 
-        if st.form_submit_button("⏱️ Set End Time to Current Time Now"):
-            cur_t, cur_a = get_current_utc5_time()
-            st.session_state.main_end_time_val = cur_t
-            st.session_state.main_end_ap_val = cur_a
-            st.rerun()
-
         st.markdown("---")
         st.subheader("Student Passengers")
         selected_students = st.multiselect(
@@ -293,43 +287,51 @@ else:
 
         submitted = st.form_submit_button("Save Trip Entry")
 
-        if submitted:
-            start_time_str = f"{start_t_val.strip()} {start_ap_val}" if start_t_val.strip() else ""
-            end_time_str = f"{end_t_val.strip()} {end_ap_val}" if end_t_val.strip() and end_ap_val != "--" else ""
+    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM, USES INCREMENTING COUNTERS) ---
+    if st.button("⏱️ Set End Time to Current Time Now"):
+        cur_t, cur_a = get_current_utc5_time()
+        st.session_state.main_end_time_val = cur_t
+        st.session_state.main_end_ap_val = cur_a
+        st.session_state.form_counter += 1  # Forces form widgets to recreate with the new default values
+        st.rerun()
 
-            if not driver_name.strip():
-                st.error("Driver Name is required.")
-            elif start_mileage is None:
-                st.error("Starting Mileage is required.")
-            elif not selected_students:
-                st.error("Please select at least one student passenger.")
-            elif not start_time_str:
-                st.error("Start Time is required.")
-            else:
-                s_mileage = int(start_mileage)
-                e_mileage = int(end_mileage) if end_mileage is not None else 0
-                total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
+    if submitted:
+        start_time_str = f"{start_t_val.strip()} {start_ap_val}" if start_t_val.strip() else ""
+        end_time_str = f"{end_t_val.strip()} {end_ap_val}" if end_t_val.strip() and end_ap_val != "--" else ""
 
-                trip_entry = {
-                    "Date": trip_date.strftime("%Y-%m-%d"),
-                    "Driver": driver_name,
-                    "Vehicle": vehicle,
-                    "Destination / Purpose": destination,
-                    "Start Mileage": s_mileage,
-                    "End Mileage": e_mileage,
-                    "Total Miles": total_miles,
-                    "Start Time": start_time_str,
-                    "End Time": end_time_str,
-                    "Students": ", ".join(selected_students),
-                }
+        if not driver_name.strip():
+            st.error("Driver Name is required.")
+        elif start_mileage is None:
+            st.error("Starting Mileage is required.")
+        elif not selected_students:
+            st.error("Please select at least one student passenger.")
+        elif not start_time_str:
+            st.error("Start Time is required.")
+        else:
+            s_mileage = int(start_mileage)
+            e_mileage = int(end_mileage) if end_mileage is not None else 0
+            total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
 
-                save_log_to_db(trip_entry)
-                st.session_state.log_history = load_logs_from_db()
-                st.session_state.form_counter += 1
-                st.session_state.main_end_time_val = ""
-                st.session_state.main_end_ap_val = "--"
-                st.success("Trip successfully logged and saved to database!")
-                st.rerun()
+            trip_entry = {
+                "Date": trip_date.strftime("%Y-%m-%d"),
+                "Driver": driver_name,
+                "Vehicle": vehicle,
+                "Destination / Purpose": destination,
+                "Start Mileage": s_mileage,
+                "End Mileage": e_mileage,
+                "Total Miles": total_miles,
+                "Start Time": start_time_str,
+                "End Time": end_time_str,
+                "Students": ", ".join(selected_students),
+            }
+
+            save_log_to_db(trip_entry)
+            st.session_state.log_history = load_logs_from_db()
+            st.session_state.form_counter += 1
+            st.session_state.main_end_time_val = ""
+            st.session_state.main_end_ap_val = "--"
+            st.success("Trip successfully logged and saved to database!")
+            st.rerun()
 
     # --- PRINTABLE & EDITABLE LOG SECTION (Compact Scrollable Container) ---
     if len(st.session_state.log_history) > 0:
