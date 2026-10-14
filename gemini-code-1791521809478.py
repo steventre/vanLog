@@ -166,21 +166,23 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", "--"
 
-# Student list definition
-students_list = [
+# Corrected student list organized with clear logical groupings
+grouped_students = [
+    "--- GROUP A ---",
+    "Caleb Allen",
     "Carmelo Behrendt",
-    "Nick Gardner",
-    "Nate Nelson",
+    "Dorian Patterson",
     "Javion Townsend",
     "Jevon Smiley",
-    "Droian Patterson",
-    "Charles Mcentyre",
+    "Joel Afamefuna",
+    "--- GROUP B ---",
+    "Charles Mcintyre",
+    "Nathaniel Nelson",
+    "Nicholas Gardner",
     "Tyler Evans",
-    "Joel Afumafane",
-    "Caleb Allen",
-    "Zach McDaniels",
+    "Zachary McDaniels"
 ]
-sorted_students = sorted(students_list)
+clean_students_list = [s for s in grouped_students if not s.startswith("---")]
 
 # --- INDIVIDUAL PRINT VIEW SCREEN ---
 if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
@@ -282,20 +284,22 @@ else:
         st.markdown("---")
         st.subheader("Student Passengers")
         selected_students = st.multiselect(
-            "Select Students on Trip (Alphabetical, Required)", sorted_students, key=f"main_students_{st.session_state.form_counter}"
+            "Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}"
         )
 
         submitted = st.form_submit_button("Save Trip Entry")
 
-    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM, USES INCREMENTING COUNTERS) ---
+    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM) ---
     if st.button("⏱️ Set End Time to Current Time Now"):
         cur_t, cur_a = get_current_utc5_time()
         st.session_state.main_end_time_val = cur_t
         st.session_state.main_end_ap_val = cur_a
-        st.session_state.form_counter += 1  # Forces form widgets to recreate with the new default values
+        st.session_state.form_counter += 1
         st.rerun()
 
     if submitted:
+        # Filter out group header dividers if accidentally selected
+        valid_selected_students = [s for s in selected_students if not s.startswith("---")]
         start_time_str = f"{start_t_val.strip()} {start_ap_val}" if start_t_val.strip() else ""
         end_time_str = f"{end_t_val.strip()} {end_ap_val}" if end_t_val.strip() and end_ap_val != "--" else ""
 
@@ -303,7 +307,7 @@ else:
             st.error("Driver Name is required.")
         elif start_mileage is None:
             st.error("Starting Mileage is required.")
-        elif not selected_students:
+        elif not valid_selected_students:
             st.error("Please select at least one student passenger.")
         elif not start_time_str:
             st.error("Start Time is required.")
@@ -322,7 +326,7 @@ else:
                 "Total Miles": total_miles,
                 "Start Time": start_time_str,
                 "End Time": end_time_str,
-                "Students": ", ".join(selected_students),
+                "Students": ", ".join(valid_selected_students),
             }
 
             save_log_to_db(trip_entry)
@@ -386,11 +390,12 @@ else:
                         ed_ea_idx = ed_ea_opts.index(current_ea) if current_ea in ed_ea_opts else 0
                         ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{trip['id']}")
                     
-                    current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in sorted_students]
-                    e_students = st.multiselect("Student Passengers", sorted_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
+                    current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
+                    e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
 
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
+                        valid_e_students = [s for s in e_students if not s.startswith("---")]
                         calc_sm = e_start_m if e_start_m is not None else 0
                         calc_em = e_end_m if e_end_m is not None else 0
                         calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
@@ -405,7 +410,7 @@ else:
                             "Total Miles": calc_total,
                             "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
                             "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
-                            "Students": ", ".join(e_students) if e_students else "None logged"
+                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
                         }
 
                         update_log_in_db(trip["id"], updated_trip)
