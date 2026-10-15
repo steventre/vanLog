@@ -406,25 +406,23 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # Single horizontal row using columns without wrapper overhead
-                ac1, ac2, ac3 = st.columns([1, 1, 1])
-                with ac1:
-                    if st.button(f"🖨️ Print", key=f"print_btn_{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                with ac2:
-                    set_now_key_flag = f"trigger_now_{trip['id']}"
-                    if st.button(f"⏱️ Set Now", key=f"btn_now_{trip['id']}"):
-                        cur_t, cur_a = get_current_utc5_time()
-                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                        st.rerun()
-                with ac3:
-                    if st.button(f"🗑️ Delete", key=f"del_btn_{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
+                # Standard sequential buttons without columns
+                if st.button(f"🖨️ Print Sheet #{trip['id']}", key=f"print_btn_{trip['id']}"):
+                    st.session_state.print_target_idx = idx
+                    st.rerun()
+                
+                set_now_key_flag = f"trigger_now_{trip['id']}"
+                if st.button(f"⏱️ Set End Time Now #{trip['id']}", key=f"btn_now_{trip['id']}"):
+                    cur_t, cur_a = get_current_utc5_time()
+                    st.session_state[f"ed_et_{trip['id']}"] = cur_t
+                    st.session_state[f"ed_ea_{trip['id']}"] = cur_a
+                    st.rerun()
+                
+                if st.button(f"🗑️ Delete Trip #{trip['id']}", key=f"del_btn_{trip['id']}"):
+                    delete_log_from_db(trip['id'])
+                    st.session_state.log_history = load_logs_from_db()
+                    st.success(f"Trip #{trip['id']} deleted successfully!")
+                    st.rerun()
 
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
@@ -449,54 +447,4 @@ else:
                     with esc1:
                         ed_st_val = st.text_input("Start Time", value=est_t, key=f"ed_st_{trip['id']}")
                     with esc2:
-                        ed_sa_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if est_ap == "AM" else 1, key=f"ed_sa_{trip['id']}")
-
-                    st.markdown("**End Time (UTC-5)**")
-                    eec1, eec2 = st.columns([2, 1])
-                    with eec1:
-                        default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
-                        ed_et_val = st.text_input("End Time", value=default_et_val, key=f"ed_et_{trip['id']}")
-                    with eec2:
-                        ed_ea_opts = ["--", "AM", "PM"]
-                        current_ea = st.session_state.get(f"ed_ea_{trip['id']}", eet_ap)
-                        ed_ea_idx = ed_ea_opts.index(current_ea) if current_ea in ed_ea_opts else 0
-                        ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{trip['id']}")
-                    
-                    current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                    e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
-
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        valid_e_students = [s for s in e_students if not s.startswith("---")]
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
-                            "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
-                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                        }
-
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/css",
-        )
+                        ed_sa_val = st.selectbox("
