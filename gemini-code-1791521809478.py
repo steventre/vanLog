@@ -483,4 +483,40 @@ else:
                         ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{trip['id']}")
                     
                     current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                    e_students = st.multiselect("Student Passengers
+                    e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
+
+                    e_saved = st.form_submit_button("Update Trip Entry")
+                    if e_saved:
+                        valid_e_students = [s for s in e_students if not s.startswith("---")]
+                        calc_sm = e_start_m if e_start_m is not None else 0
+                        calc_em = e_end_m if e_end_m is not None else 0
+                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+
+                        updated_trip = {
+                            "Date": e_date.strftime("%Y-%m-%d"),
+                            "Driver": trip["Driver"],
+                            "Vehicle": trip["Vehicle"],
+                            "Destination / Purpose": e_dest,
+                            "Start Mileage": calc_sm,
+                            "End Mileage": calc_em,
+                            "Total Miles": calc_total,
+                            "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
+                            "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
+                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
+                        }
+
+                        update_log_in_db(trip["id"], updated_trip)
+                        st.session_state.log_history = load_logs_from_db()
+                        st.success("Trip updated successfully!")
+                        st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_logs = pd.DataFrame(st.session_state.log_history)
+        csv = df_logs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Entire Log History as CSV",
+            data=csv,
+            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
