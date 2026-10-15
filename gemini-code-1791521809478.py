@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for single-page mobile print view and compact scrollable log history container
+# Custom CSS with reduced padding and smaller H1 size for mobile print view
 st.markdown("""
     <style>
     @media print {
@@ -20,25 +20,38 @@ st.markdown("""
             visibility: visible !important;
             color: #000 !important;
             background: #fff !important;
+            font-size: 13px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        h1 {
+            font-size: 18px !important;
+            margin-bottom: 2px !important;
+        }
+        h3, h4 {
             font-size: 14px !important;
+            margin-top: 5px !important;
+            margin-bottom: 5px !important;
+        }
+        hr {
+            margin: 5px 0 !important;
         }
         .print-students-box {
-            font-size: 15px !important;
+            font-size: 13px !important;
             font-weight: bold !important;
             color: #000 !important;
             border: 1px solid #000 !important;
-            padding: 8px !important;
+            padding: 5px !important;
             margin-top: 5px !important;
-            margin-bottom: 10px !important;
+            margin-bottom: 5px !important;
         }
         .print-grid {
-            display: flex !important;
-            justify-content: space-between !important;
-            margin-top: 10px !important;
-            margin-bottom: 10px !important;
+            display: block !important;
+            margin-top: 5px !important;
+            margin-bottom: 5px !important;
             border-top: 1px solid #ccc !important;
             border-bottom: 1px solid #ccc !important;
-            padding: 8px 0 !important;
+            padding: 5px 0 !important;
         }
     }
     .scrollable-log-container {
@@ -219,11 +232,9 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     
     print_html_grid = f"""
     <div class="print-grid">
-        <div><strong>Start Mileage:</strong> {trip['Start Mileage']}</div>
-        <div><strong>End Mileage:</strong> {trip['End Mileage']}</div>
-        <div><strong>Total Miles:</strong> {trip['Total Miles']}</div>
+        <div><strong>Start Mileage:</strong> {trip['Start Mileage']} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>End Mileage:</strong> {trip['End Mileage']} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Total Miles:</strong> {trip['Total Miles']}</div>
     </div>
-    <div style="margin-top: 5px; margin-bottom: 10px;">
+    <div style="margin-top: 4px; margin-bottom: 5px;">
         <strong>Start Time:</strong> {trip['Start Time']} &nbsp;&nbsp;|&nbsp;&nbsp; 
         <strong>End Time:</strong> {trip['End Time'] if trip['End Time'] else 'N/A'}
     </div>
