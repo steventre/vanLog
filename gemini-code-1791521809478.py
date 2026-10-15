@@ -217,8 +217,7 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     
     st.markdown('<div class="print-receipt">', unsafe_allow_html=True)
     
-    # Reduced heading size & anchor link removal via HTML wrapper
-    st.markdown("<h1>🚐 Vehicle Usage Log - Trip Receipt</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>🚐 Vehicle Use Log - Trip Receipt</h1>", unsafe_allow_html=True)
     st.markdown(f"**Trip #{trip['id']} Report** (Generated: {datetime.today().strftime('%Y-%m-%d')})")
     st.markdown("---")
 
@@ -257,7 +256,7 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
 
 else:
     # --- NORMAL APP & FORM MODE ---
-    st.title("🚐 Vehicle Usage Log")
+    st.title("🚐 Vehicle Use Log")
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
@@ -322,7 +321,6 @@ else:
         st.rerun()
 
     if submitted:
-        # Fallback values if sections are collapsed and keep default variables populated
         try:
             driver_name_val = driver_name
         except NameError:
