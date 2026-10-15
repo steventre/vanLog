@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="High School Vehicle Usage Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for bulletproof mobile print visibility and compact scrollable log history container
+# Custom CSS for single-page mobile print view and compact scrollable log history container
 st.markdown("""
     <style>
     @media print {
@@ -20,14 +20,25 @@ st.markdown("""
             visibility: visible !important;
             color: #000 !important;
             background: #fff !important;
+            font-size: 14px !important;
         }
         .print-students-box {
-            font-size: 16px !important;
+            font-size: 15px !important;
             font-weight: bold !important;
             color: #000 !important;
             border: 1px solid #000 !important;
-            padding: 10px !important;
+            padding: 8px !important;
+            margin-top: 5px !important;
+            margin-bottom: 10px !important;
+        }
+        .print-grid {
+            display: flex !important;
+            justify-content: space-between !important;
             margin-top: 10px !important;
+            margin-bottom: 10px !important;
+            border-top: 1px solid #ccc !important;
+            border-bottom: 1px solid #ccc !important;
+            padding: 8px 0 !important;
         }
     }
     .scrollable-log-container {
@@ -166,7 +177,7 @@ def parse_time_string(time_str):
     except (ValueError, IndexError):
         return "", "--"
 
-# Updated student list with Nate in Group A and Joel in Group B
+# Grouped student roster definition
 grouped_students = [
     "--- GROUP A ---",
     "Carmelo Behrendt",
@@ -205,19 +216,20 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     st.markdown(f'<div class="print-students-box"><strong>{trip["Students"]}</strong></div>', unsafe_allow_html=True)
     
     st.markdown("---")
-    col_p1, col_p2, col_p3 = st.columns(3)
-    with col_p1:
-        st.metric("Starting Mileage", trip['Start Mileage'])
-    with col_p2:
-        st.metric("Ending Mileage", trip['End Mileage'])
-    with col_p3:
-        st.metric("Total Miles", trip['Total Miles'])
-
-    col_p4, col_p5 = st.columns(2)
-    with col_p4:
-        st.markdown(f"**Start Time:** {trip['Start Time']}")
-    with col_p5:
-        st.markdown(f"**End Time:** {trip['End Time'] if trip['End Time'] else 'N/A'}")
+    
+    # Render compact HTML grid for mileage and times to guarantee single-page mobile printing
+    print_html_grid = f"""
+    <div class="print-grid">
+        <div><strong>Start Mileage:</strong> {trip['Start Mileage']}</div>
+        <div><strong>End Mileage:</strong> {trip['End Mileage']}</div>
+        <div><strong>Total Miles:</strong> {trip['Total Miles']}</div>
+    </div>
+    <div style="margin-top: 5px; margin-bottom: 10px;">
+        <strong>Start Time:</strong> {trip['Start Time']} &nbsp;&nbsp;|&nbsp;&nbsp; 
+        <strong>End Time:</strong> {trip['End Time'] if trip['End Time'] else 'N/A'}
+    </div>
+    """
+    st.markdown(print_html_grid, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -417,33 +429,4 @@ else:
                         st.success("Trip updated successfully!")
                         st.rerun()
 
-                # --- ACTION BUTTONS DIRECTLY BELOW UPDATE (No dividing line) ---
-                col_act1, col_act2, col_act3 = st.columns(3)
-                
-                with col_act1:
-                    if st.button(f"🖨️ Print Sheet", key=f"print_btn_{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                
-                with col_act2:
-                    if st.button(f"⏱️ Set Now", key=f"btn_now_{trip['id']}"):
-                        st.session_state[set_now_key_flag] = True
-                        st.rerun()
-                
-                with col_act3:
-                    if st.button(f"🗑️ Delete", key=f"del_btn_{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+                # --- ACTION BUTTONS DIRECTLY BELOW UPDATE
