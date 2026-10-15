@@ -8,10 +8,9 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to force side-by-side buttons on mobile and standardize expanders
+# Custom CSS for clean mobile print view, standardized expanders, and header styling
 st.markdown("""
     <style>
-    /* Remove Streamlit's default top header whitespace/padding */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 2rem !important;
@@ -20,8 +19,6 @@ st.markdown("""
         visibility: hidden !important;
         height: 0px !important;
     }
-
-    /* Standardize expander headers to have a consistent light gray background */
     [data-testid="stExpander"] {
         background-color: #f9f9f9 !important;
         border: 1px solid #e0e0e0 !important;
@@ -32,27 +29,6 @@ st.markdown("""
         background-color: #f9f9f9 !important;
         border-radius: 0.5rem !important;
     }
-
-    /* FORCE side-by-side buttons on mobile inside expanders */
-    [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 6px !important;
-        align-items: center !important;
-    }
-    [data-testid="stExpander"] [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        width: 33.333% !important;
-        flex: 1 1 33.333% !important;
-        min-width: unset !important;
-    }
-    [data-testid="stExpander"] [data-testid="stHorizontalBlock"] button {
-        width: 100% !important;
-        font-size: 11px !important;
-        padding: 0.3rem 0.1rem !important;
-        white-space: nowrap !important;
-    }
-
     @media print {
         .print-hide, [data-testid="stButton"], header, footer {
             display: none !important;
@@ -430,7 +406,6 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # --- FORCED SIDE-BY-SIDE BUTTON COLUMNS ---
                 ac1, ac2, ac3 = st.columns(3)
                 with ac1:
                     if st.button(f"🖨️ Print", key=f"print_btn_{trip['id']}"):
