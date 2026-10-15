@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to tighten up button spacing, remove dead space, and standardize expanders
+# Custom CSS to standardize expanders, remove top padding, and keep action buttons compact and neat
 st.markdown("""
     <style>
     /* Remove Streamlit's default top header whitespace/padding */
@@ -33,24 +33,12 @@ st.markdown("""
         border-radius: 0.5rem !important;
     }
 
-    /* Tight button layout - pack buttons together side-by-side without wide dead space */
-    .action-button-container {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 8px !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        margin-bottom: 10px !important;
-    }
-    .action-button-container [data-testid="column"] {
-        width: auto !important;
-        flex: 0 1 auto !important;
-        min-width: unset !important;
-    }
-    .action-button-container button {
-        width: auto !important;
-        font-size: 13px !important;
-        padding: 0.35rem 0.75rem !important;
+    /* Compact button spacing for log history actions */
+    .action-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
     }
 
     @media print {
@@ -407,42 +395,4 @@ else:
                 "Total Miles": total_miles,
                 "Start Time": start_time_str,
                 "End Time": end_time_str,
-                "Students": ", ".join(valid_selected_students),
-            }
-
-            save_log_to_db(trip_entry)
-            st.session_state.log_history = load_logs_from_db()
-            st.session_state.form_counter += 1
-            st.session_state.main_end_time_val = ""
-            st.session_state.main_end_ap_val = "--"
-            st.success("Trip successfully logged and saved to database!")
-            st.rerun()
-
-    # --- PRINTABLE & EDITABLE LOG SECTION ---
-    st.markdown("---")
-    st.subheader("📋 Log History")
-
-    if len(st.session_state.log_history) == 0:
-        st.info("No trip logs found yet. Save a trip above to see it appear here!")
-    else:
-        st.markdown('<div class="scrollable-log-container">', unsafe_allow_html=True)
-
-        for idx, trip in enumerate(st.session_state.log_history):
-            with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
-                
-                # --- ACTION BUTTONS PACKED TIGHTLY SIDE-BY-SIDE ---
-                st.markdown('<div class="action-button-container">', unsafe_allow_html=True)
-                col_act1, col_act2, col_act3 = st.columns(3)
-                
-                with col_act1:
-                    if st.button(f"🖨️ Print Sheet", key=f"print_btn_{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                
-                with col_act2:
-                    set_now_key_flag = f"trigger_now_{trip['id']}"
-                    if st.button(f"⏱️ Set Now", key=f"btn_now_{trip['id']}"):
-                        cur_t, cur_a = get_current_utc5_time()
-                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                        st.rer
+                "Students
