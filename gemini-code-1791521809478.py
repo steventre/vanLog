@@ -5,7 +5,7 @@ import streamlit as st
 
 # Page configuration
 st.set_page_config(
-    page_title="Vehicle Usage Log", page_icon="🚐", layout="centered"
+    page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
 # Custom CSS for clean mobile print view and side-by-side action buttons
