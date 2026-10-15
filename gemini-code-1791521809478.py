@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to standardize expanders, remove top padding, and keep action buttons compact and neat
+# Custom CSS to force side-by-side buttons on mobile and standardize expanders
 st.markdown("""
     <style>
     /* Remove Streamlit's default top header whitespace/padding */
@@ -33,12 +33,24 @@ st.markdown("""
         border-radius: 0.5rem !important;
     }
 
-    /* Compact button spacing for log history actions */
-    .action-row {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 10px;
+    /* Force log history action columns to stay side-by-side on mobile */
+    [data-testid="stExpander"] [data-testid="horizontal-block"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        align-items: center !important;
+    }
+    [data-testid="stExpander"] [data-testid="horizontal-block"] > [data-testid="column"] {
+        width: 33.333% !important;
+        flex: 1 1 33.333% !important;
+        min-width: unset !important;
+    }
+    [data-testid="stExpander"] [data-testid="horizontal-block"] button {
+        width: 100% !important;
+        font-size: 11px !important;
+        padding: 0.3rem 0.2rem !important;
+        white-space: nowrap !important;
     }
 
     @media print {
@@ -418,8 +430,8 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # --- CLEAN 3-COLUMN LAYOUT WITHOUT BROKEN CSS OVERRIDES ---
-                ac1, ac2, ac3 = st.columns([1, 1, 1])
+                # --- FORCED SIDE-BY-SIDE COLUMNS ON MOBILE & DESKTOP ---
+                ac1, ac2, ac3 = st.columns(3)
                 with ac1:
                     if st.button(f"🖨️ Print", key=f"print_btn_{trip['id']}"):
                         st.session_state.print_target_idx = idx
