@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to force buttons into a true inline horizontal row
+# Custom CSS for clean mobile print view and standardized expanders
 st.markdown("""
     <style>
     .block-container {
@@ -29,25 +29,6 @@ st.markdown("""
         background-color: #f9f9f9 !important;
         border-radius: 0.5rem !important;
     }
-    
-    /* Force buttons inside the action row to sit side-by-side */
-    .btn-row {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 8px !important;
-        align-items: center !important;
-        margin-bottom: 10px !important;
-    }
-    .btn-row div[data-testid="stButton"] {
-        display: inline-block !important;
-        width: auto !important;
-    }
-    .btn-row button {
-        width: auto !important;
-        white-space: nowrap !important;
-    }
-
     @media print {
         .print-hide, [data-testid="stButton"], header, footer {
             display: none !important;
@@ -425,25 +406,25 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # Wrapped in a true inline flex container row
-                st.markdown('<div class="btn-row">', unsafe_allow_html=True)
-                if st.button(f"🖨️ Print #{trip['id']}", key=f"print_btn_{trip['id']}"):
-                    st.session_state.print_target_idx = idx
-                    st.rerun()
-                
-                set_now_key_flag = f"trigger_now_{trip['id']}"
-                if st.button(f"⏱️ Set Now #{trip['id']}", key=f"btn_now_{trip['id']}"):
-                    cur_t, cur_a = get_current_utc5_time()
-                    st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                    st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                    st.rerun()
-                
-                if st.button(f"🗑️ Delete #{trip['id']}", key=f"del_btn_{trip['id']}"):
-                    delete_log_from_db(trip['id'])
-                    st.session_state.log_history = load_logs_from_db()
-                    st.success(f"Trip #{trip['id']} deleted successfully!")
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+                # Native side-by-side columns to keep buttons in a clean horizontal row
+                bc1, bc2, bc3 = st.columns(3)
+                with bc1:
+                    if st.button(f"🖨️ Print #{trip['id']}", key=f"print_btn_{trip['id']}"):
+                        st.session_state.print_target_idx = idx
+                        st.rerun()
+                with bc2:
+                    set_now_key_flag = f"trigger_now_{trip['id']}"
+                    if st.button(f"⏱️ Set Now #{trip['id']}", key=f"btn_now_{trip['id']}"):
+                        cur_t, cur_a = get_current_utc5_time()
+                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
+                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
+                        st.rerun()
+                with bc3:
+                    if st.button(f"🗑️ Delete #{trip['id']}", key=f"del_btn_{trip['id']}"):
+                        delete_log_from_db(trip['id'])
+                        st.session_state.log_history = load_logs_from_db()
+                        st.success(f"Trip #{trip['id']} deleted successfully!")
+                        st.rerun()
 
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
