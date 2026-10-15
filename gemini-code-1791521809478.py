@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to force side-by-side layout even on narrow mobile screens
+# Custom CSS to lock icon buttons tightly side-by-side in a clean row
 st.markdown("""
     <style>
     .block-container {
@@ -30,24 +30,24 @@ st.markdown("""
         border-radius: 0.5rem !important;
     }
     
-    /* OVERRIDE Streamlit's hardcoded mobile column stacking breakpoint */
-    [data-testid="stHorizontalBlock"] {
+    /* Force action buttons container into a strict horizontal row */
+    .action-icon-row {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 4px !important;
+        gap: 6px !important;
         align-items: center !important;
+        margin-bottom: 10px !important;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    .action-icon-row [data-testid="stButton"] {
+        display: inline-block !important;
         width: auto !important;
-        flex: 0 0 auto !important;
-        min-width: unset !important;
     }
-    [data-testid="stButton"] button {
-        padding: 0.3rem 0.5rem !important;
-        min-height: unset !important;
+    .action-icon-row button {
+        width: auto !important;
+        padding: 0.3rem 0.6rem !important;
     }
-    
+
     @media print {
         .print-hide, [data-testid="stButton"], header, footer {
             display: none !important;
@@ -425,7 +425,8 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                # Compact icon buttons forced side-by-side
+                # Render icon buttons inside a clean HTML flex row container to avoid mobile stacking
+                st.markdown('<div class="action-icon-row">', unsafe_allow_html=True)
                 bc1, bc2, bc3 = st.columns(3)
                 with bc1:
                     if st.button("🖨️", key=f"print_btn_{trip['id']}", help=f"Print Trip #{trip['id']}"):
@@ -443,6 +444,7 @@ else:
                         st.session_state.log_history = load_logs_from_db()
                         st.success(f"Trip #{trip['id']} deleted successfully!")
                         st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
@@ -481,40 +483,4 @@ else:
                         ed_ea_val = st.selectbox("End AM/PM", ed_ea_opts, index=ed_ea_idx, key=f"ed_ea_{trip['id']}")
                     
                     current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                    e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
-
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        valid_e_students = [s for s in e_students if not s.startswith("---")]
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": f"{ed_st_val.strip()} {ed_sa_val}",
-                            "End Time": f"{ed_et_val.strip()} {ed_ea_val}" if ed_et_val.strip() and ed_ea_val != "--" else "",
-                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                        }
-
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+                    e_students = st.multiselect("Student Passengers
