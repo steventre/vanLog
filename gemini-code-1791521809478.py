@@ -307,7 +307,7 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        # Trip Details (Collapsed by default on main form)
+        # Trip Details (Collapsed by default)
         with st.expander("Trip Details", expanded=False):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
@@ -323,8 +323,8 @@ else:
             start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, type="default", key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
-        # Trip End (Expanded by default for quick logging)
-        with st.expander("Trip End", expanded=True):
+        # Trip End (Collapsed by default on main form)
+        with st.expander("Trip End", expanded=False):
             tc1, tc2 = st.columns([3, 1])
             with tc1:
                 end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
@@ -392,7 +392,6 @@ else:
                     except ValueError:
                         default_d = datetime.today().date()
                     
-                    # Trip Details (Collapsed by default in log form, includes driver and vehicle)
                     with st.expander("Trip Details", expanded=False):
                         e_date = st.date_input("Date", value=default_d, key=f"ed_date_{trip['id']}")
                         e_driver = st.text_input("Driver Name", value=trip["Driver"], key=f"ed_driver_{trip['id']}")
@@ -402,19 +401,16 @@ else:
                         
                         e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
 
-                    # Student Passengers (Collapsed by default in log form)
                     with st.expander("Student Passengers", expanded=False):
                         current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
                         e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
 
-                    # Trip Start (Collapsed by default in log form)
                     with st.expander("Trip Start", expanded=False):
                         existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
                         e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
                         est_t = convert_to_24h(trip["Start Time"])
                         ed_st_val = st.text_input("Start Time (HH:MM)", value=est_t, key=f"ed_st_{trip['id']}")
 
-                    # Trip End (Expanded by default in log form)
                     with st.expander("Trip End", expanded=True):
                         existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
                         eet_t = convert_to_24h(trip["End Time"])
