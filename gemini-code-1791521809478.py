@@ -212,12 +212,11 @@ if "main_start_time_val" not in st.session_state:
 if "main_end_time_val" not in st.session_state:
     st.session_state.main_end_time_val = ""
 
-# Helper function to convert 12-hour/legacy time string to 24-hour HH:MM for input[type="time"]
+# Helper function to convert 12-hour/legacy time string to 24-hour HH:MM
 def convert_to_24h(time_str):
     if not time_str:
         return ""
     try:
-        # If it's already HH:MM
         if ":" in time_str and "AM" not in time_str and "PM" not in time_str:
             return time_str.strip()
         dt = datetime.strptime(time_str.strip(), "%I:%M %p")
@@ -293,31 +292,11 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        # Trip Details (Collapsed by default)
         with st.expander("Trip Details", expanded=False):
-            driver_name = st.text_input("Driver Name", value="Steven Hartl")
-            trip_date = st.date_input("Date", value=datetime.today())
-            vehicle = st.selectbox("Select Vehicle", ["Silver Van", "White Van", "Honda Pilot"])
-            destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0")
-
-        # Trip Start (Collapsed by default)
-        with st.expander("Trip Start", expanded=False):
-            start_time_val = st.text_input("Start Time", value=st.session_state.main_start_time_val, type="default", placeholder="HH:MM", key=f"main_st_{st.session_state.form_counter}", help="Use HTML time picker format HH:MM")
-            # Streamlit text_input can be styled or handled via standard text, but let's use a native time input component look by wrapping or using text input cleanly. 
-            # Alternatively, let's use Streamlit text_input with html input type or a clean text field.
-        
-        # Re-doing the expanders cleanly with correct native time inputs
-        # Let's use st.text_input for time since Streamlit supports type="default", but to leverage input type="time", let's render it or use standard text_input which acts as time on mobile. 
-        # Actually, let's look at standard st.text_input or text input keys. Let's make Trip Start and Trip End use standard text inputs or native widgets.
-
-    # Let's rebuild the form with proper expander states (Trip End expanded by default)
-    with st.form(f"vehicle_log_form_v2_{st.session_state.form_counter}"):
-        
-        with st.expander("Trip Details", expanded=False):
-            driver_name = st.text_input("Driver Name", value="Steven Hartl")
-            trip_date = st.date_input("Date", value=datetime.today())
-            vehicle = st.selectbox("Select Vehicle", ["Silver Van", "White Van", "Honda Pilot"])
-            destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0")
+            driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
+            trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
+            vehicle = st.selectbox("Select Vehicle", ["Silver Van", "White Van", "Honda Pilot"], key=f"main_veh_{st.session_state.form_counter}")
+            destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0", key=f"main_dest_{st.session_state.form_counter}")
 
         with st.expander("Trip Start", expanded=False):
             start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, key=f"main_st_{st.session_state.form_counter}")
@@ -328,142 +307,4 @@ else:
             end_mileage = st.number_input("Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}")
 
         with st.expander("Student Passengers", expanded=False):
-            selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}")
-
-        submitted = st.form_submit_button("Save Trip Entry")
-
-    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM) ---
-    if st.button("⏱️ Set End Time to Current Time Now"):
-        st.session_state.main_end_time_val = get_current_utc5_time_24h()
-        st.session_state.form_counter += 1
-        st.rerun()
-
-    if submitted:
-        valid_selected_students = [s for s in selected_students if not s.startswith("---")]
-        
-        if not driver_name.strip():
-            st.error("Driver Name is required.")
-        elif start_mileage is None:
-            st.error("Starting Mileage is required.")
-        elif not valid_selected_students:
-            st.error("Please select at least one student passenger.")
-        elif not start_time.strip():
-            st.error("Start Time is required.")
-        else:
-            s_mileage = int(start_mileage)
-            e_mileage = int(end_mileage) if end_mileage is not None else 0
-            total_miles = e_mileage - s_mileage if e_mileage >= s_mileage else 0
-
-            trip_entry = {
-                "Date": trip_date.strftime("%Y-%m-%d"),
-                "Driver": driver_name,
-                "Vehicle": vehicle,
-                "Destination / Purpose": destination,
-                "Start Mileage": s_mileage,
-                "End Mileage": e_mileage,
-                "Total Miles": total_miles,
-                "Start Time": start_time.strip(),
-                "End Time": end_time.strip(),
-                "Students": ", ".join(valid_selected_students),
-            }
-
-            save_log_to_db(trip_entry)
-            st.session_state.log_history = load_logs_from_db()
-            st.session_state.form_counter += 1
-            st.session_state.main_end_time_val = ""
-            st.success("Trip successfully logged and saved to database!")
-            st.rerun()
-
-    # --- PRINTABLE & EDITABLE LOG SECTION ---
-    st.markdown("---")
-    st.subheader("📋 Log History")
-
-    if len(st.session_state.log_history) == 0:
-        st.info("No trip logs found yet. Save a trip above to see it appear here!")
-    else:
-        st.markdown('<div class="scrollable-log-container">', unsafe_allow_html=True)
-
-        for idx, trip in enumerate(st.session_state.log_history):
-            with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
-                
-                with st.form(f"edit_form_{trip['id']}"):
-                    try:
-                        default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
-                    except ValueError:
-                        default_d = datetime.today().date()
-                    
-                    # Log History Sections organized identically with Trip End expanded by default
-                    with st.expander("Trip Details", expanded=False):
-                        e_date = st.date_input("Date", value=default_d, key=f"ed_date_{trip['id']}")
-                        e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
-
-                    with st.expander("Trip Start", expanded=False):
-                        existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
-                        e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
-                        est_t = convert_to_24h(trip["Start Time"])
-                        ed_st_val = st.text_input("Start Time (HH:MM)", value=est_t, key=f"ed_st_{trip['id']}")
-
-                    with st.expander("Trip End", expanded=True):
-                        existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
-                        e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
-                        eet_t = convert_to_24h(trip["End Time"])
-                        default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
-                        ed_et_val = st.text_input("End Time (HH:MM)", value=default_et_val, key=f"ed_et_{trip['id']}")
-
-                    with st.expander("Student Passengers", expanded=False):
-                        current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                        e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
-
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        valid_e_students = [s for s in e_students if not s.startswith("---")]
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": ed_st_val.strip(),
-                            "End Time": ed_et_val.strip(),
-                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                        }
-
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
-
-                # Action buttons placed right at the bottom of the log entry section
-                bc1, bc2, bc3 = st.columns(3)
-                with bc1:
-                    if st.button("🖨️", key=f"print_btn_{trip['id']}", help=f"Print Trip #{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                with bc2:
-                    if st.button("⏱️", key=f"btn_now_{trip['id']}", help="Set End Time to Now"):
-                        cur_t = get_current_utc5_time_24h()
-                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                        st.rerun()
-                with bc3:
-                    if st.button("🗑️", key=f"del_btn_{trip['id']}", help=f"Delete Trip #{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+            selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=
