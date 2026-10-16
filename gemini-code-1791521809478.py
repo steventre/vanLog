@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for uniform expanders, unified H1/H3 sizes, and strict inline button rows
+# Custom CSS for uniform expanders, unified H1/H3 sizes, and clean inline text links
 st.markdown("""
     <style>
     .block-container {
@@ -35,26 +35,20 @@ st.markdown("""
         border-radius: 0.5rem !important;
     }
 
-    /* Force Streamlit button columns into an unbreakable horizontal row at the bottom of the expander */
-    [data-testid="stHorizontalBlock"] {
+    /* Clean horizontal row container for inline text action links */
+    .action-links-row {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 8px !important;
+        gap: 16px !important;
         align-items: center !important;
-        margin-top: 10px !important;
-        margin-bottom: 5px !important;
+        margin-top: 8px !important;
+        margin-bottom: 4px !important;
+        font-size: 0.95rem !important;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        width: auto !important;
-        flex: 0 0 auto !important;
-        min-width: unset !important;
-    }
-    [data-testid="stButton"] button {
-        width: auto !important;
-        padding: 0.3rem 0.6rem !important;
-        min-height: unset !important;
-        white-space: nowrap !important;
+    .action-links-row a {
+        text-decoration: none !important;
+        font-weight: 500 !important;
     }
 
     @media print {
@@ -199,6 +193,26 @@ if "form_counter" not in st.session_state:
 if "print_target_idx" not in st.session_state:
     st.session_state.print_target_idx = None
 
+# Handle URL query params for lightweight link actions (Print / Delete)
+query_params = st.query_params
+if "action" in query_params and "trip_id" in query_params:
+    action = query_params["action"]
+    try:
+        t_id = int(query_params["trip_id"])
+        if action == "print":
+            for i, trip in enumerate(st.session_state.log_history):
+                if trip["id"] == t_id:
+                    st.session_state.print_target_idx = i
+                    st.query_params.clear()
+                    st.rerun()
+        elif action == "delete":
+            delete_log_from_db(t_id)
+            st.session_state.log_history = load_logs_from_db()
+            st.query_params.clear()
+            st.rerun()
+    except ValueError:
+        pass
+
 # Helper function to get current UTC-5 time in 24-hour format for HTML time input (HH:MM)
 def get_current_utc5_time_24h():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
@@ -292,30 +306,36 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        with st.expander("Trip Details", expanded=False):
+        # Trip Details (Expanded by default)
+        with st.expander("Trip Details", expanded=True):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
             vehicle = st.selectbox("Select Vehicle", ["Silver Van", "White Van", "Honda Pilot"], key=f"main_veh_{st.session_state.form_counter}")
             destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0", key=f"main_dest_{st.session_state.form_counter}")
 
-        with st.expander("Trip Start", expanded=False):
+        # Student Passengers (Expanded by default)
+        with st.expander("Student Passengers", expanded=True):
+            selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}")
+
+        # Trip Start (Expanded by default)
+        with st.expander("Trip Start", expanded=True):
             start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
-        with st.expander("Trip End", expanded=True):
-            end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
+        # Trip End (Collapsed by default)
+        with st.expander("Trip End", expanded=False):
+            tc1, tc2 = st.columns([3, 1])
+            with tc1:
+                end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
+            with tc2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.form_submit_button("⏱️ Now"):
+                    st.session_state.main_end_time_val = get_current_utc5_time_24h()
+                    st.rerun()
+
             end_mileage = st.number_input("Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}")
 
-        with st.expander("Student Passengers", expanded=False):
-            selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}")
-
         submitted = st.form_submit_button("Save Trip Entry")
-
-    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM) ---
-    if st.button("⏱️ Set End Time to Current Time Now"):
-        st.session_state.main_end_time_val = get_current_utc5_time_24h()
-        st.session_state.form_counter += 1
-        st.rerun()
 
     if submitted:
         valid_selected_students = [s for s in selected_students if not s.startswith("---")]
@@ -371,26 +391,35 @@ else:
                     except ValueError:
                         default_d = datetime.today().date()
                     
-                    with st.expander("Trip Details", expanded=False):
+                    with st.expander("Trip Details", expanded=True):
                         e_date = st.date_input("Date", value=default_d, key=f"ed_date_{trip['id']}")
                         e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
 
-                    with st.expander("Trip Start", expanded=False):
+                    with st.expander("Student Passengers", expanded=True):
+                        current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
+                        e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
+
+                    with st.expander("Trip Start", expanded=True):
                         existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
                         e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
                         est_t = convert_to_24h(trip["Start Time"])
                         ed_st_val = st.text_input("Start Time (HH:MM)", value=est_t, key=f"ed_st_{trip['id']}")
 
-                    with st.expander("Trip End", expanded=True):
+                    with st.expander("Trip End", expanded=False):
                         existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
-                        e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
                         eet_t = convert_to_24h(trip["End Time"])
                         default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
-                        ed_et_val = st.text_input("End Time (HH:MM)", value=default_et_val, key=f"ed_et_{trip['id']}")
+                        
+                        etc1, etc2 = st.columns([3, 1])
+                        with etc1:
+                            ed_et_val = st.text_input("End Time (HH:MM)", value=default_et_val, key=f"ed_et_{trip['id']}")
+                        with etc2:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
+                                st.session_state[f"ed_et_{trip['id']}"] = get_current_utc5_time_24h()
+                                st.rerun()
 
-                    with st.expander("Student Passengers", expanded=False):
-                        current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                        e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
+                        e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
 
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
@@ -417,23 +446,15 @@ else:
                         st.success("Trip updated successfully!")
                         st.rerun()
 
-                # Action buttons placed right at the bottom of the log entry section
-                bc1, bc2, bc3 = st.columns(3)
-                with bc1:
-                    if st.button("🖨️", key=f"print_btn_{trip['id']}", help=f"Print Trip #{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                with bc2:
-                    if st.button("⏱️", key=f"btn_now_{trip['id']}", help="Set End Time to Now"):
-                        cur_t = get_current_utc5_time_24h()
-                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                        st.rerun()
-                with bc3:
-                    if st.button("🗑️", key=f"del_btn_{trip['id']}", help=f"Delete Trip #{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
+                # Action links placed neatly in a single horizontal flex row at the bottom of the expander
+                action_links_html = f"""
+                <div class="action-links-row">
+                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print #{trip['id']}</a>
+                    <span>|</span>
+                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete #{trip['id']}</a>
+                </div>
+                """
+                st.markdown(action_links_html, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
