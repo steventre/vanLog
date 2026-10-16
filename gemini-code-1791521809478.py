@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for tight alignment and clean styling
+# Custom CSS for perfect button alignment and clean styling
 st.markdown("""
     <style>
     .block-container {
@@ -34,6 +34,12 @@ st.markdown("""
     [data-testid="stExpander"] summary {
         background-color: #f9f9f9 !important;
         border-radius: 0.5rem !important;
+    }
+
+    /* Align the 'Now' submit button columns flush with the text input */
+    [data-testid="stHorizontalBlock"] {
+        align-items: flex-end !important;
+        gap: 8px !important;
     }
 
     /* Clean horizontal row container for inline text action links */
@@ -340,7 +346,6 @@ else:
             with tc1:
                 end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
             with tc2:
-                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                 if st.form_submit_button("⏱️ Now"):
                     st.session_state[main_now_trigger] = True
                     st.rerun()
@@ -441,7 +446,6 @@ else:
                         with etc1:
                             ed_et_val = st.text_input("End Time (HH:MM)", key=edit_key)
                         with etc2:
-                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                             if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
                                 st.session_state[now_trigger_key] = True
                                 st.rerun()
