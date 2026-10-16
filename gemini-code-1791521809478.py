@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for perfect button alignment and clean styling
+# Custom CSS with balanced heading sizes (1.5rem), tight button alignment, and clean spacing
 st.markdown("""
     <style>
     .block-container {
@@ -19,9 +19,10 @@ st.markdown("""
         padding-right: 1rem !important;
     }
     
-    /* Unified font size for H1 and H3 headings */
+    /* Balanced heading size for H1 and H3 headings so they match and look prominent */
     h1, h3 {
-        font-size: 1.3rem !important;
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
     }
 
     /* Standardize expander headers to have a consistent light gray background */
@@ -328,7 +329,6 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        # All sections collapsed by default on main form
         with st.expander("Trip Details", expanded=False):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
@@ -395,7 +395,8 @@ else:
 
     # --- PRINTABLE & EDITABLE LOG SECTION ---
     st.markdown("---")
-    st.subheader("📋 Log History")
+    # Styled as H3 to inherit the 1.5rem font size matching the main title perfectly
+    st.markdown("<h3>📋 Log History</h3>", unsafe_allow_html=True)
 
     if len(st.session_state.log_history) == 0:
         st.info("No trip logs found yet. Save a trip above to see it appear here!")
@@ -421,85 +422,4 @@ else:
                         e_driver = st.text_input("Driver Name", value=trip["Driver"], key=f"ed_driver_{trip['id']}")
                         
                         v_idx = vehicle_options.index(trip["Vehicle"]) if trip["Vehicle"] in vehicle_options else 0
-                        e_vehicle = st.selectbox("Select Vehicle", vehicle_options, index=v_idx, key=f"ed_veh_{trip['id']}")
-                        
-                        e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
-
-                    with st.expander("Student Passengers", expanded=False):
-                        current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
-                        e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
-
-                    with st.expander("Trip Start", expanded=False):
-                        existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
-                        e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
-                        est_t = convert_to_24h(trip["Start Time"])
-                        ed_st_val = st.text_input("Start Time (HH:MM)", value=est_t, key=f"ed_st_{trip['id']}")
-
-                    with st.expander("Trip End", expanded=True):
-                        existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
-                        eet_t = convert_to_24h(trip["End Time"])
-                        
-                        edit_key = f"ed_et_{trip['id']}"
-                        if edit_key not in st.session_state:
-                            st.session_state[edit_key] = eet_t
-                        
-                        etc1, etc2 = st.columns([2, 1])
-                        with etc1:
-                            ed_et_val = st.text_input("End Time (HH:MM)", key=edit_key)
-                        with etc2:
-                            if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
-                                st.session_state[now_trigger_key] = True
-                                st.rerun()
-
-                        e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
-
-                    e_saved = st.form_submit_button("Update Trip Entry")
-                    if e_saved:
-                        if not validate_time_format(ed_st_val):
-                            st.error("Start Time must be in valid HH:MM format (24-hour).")
-                        elif ed_et_val.strip() and not validate_time_format(ed_et_val):
-                            st.error("End Time must be in valid HH:MM format (24-hour).")
-                        else:
-                            valid_e_students = [s for s in e_students if not s.startswith("---")]
-                            calc_sm = e_start_m if e_start_m is not None else 0
-                            calc_em = e_end_m if e_end_m is not None else 0
-                            calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
-
-                            updated_trip = {
-                                "Date": e_date.strftime("%Y-%m-%d"),
-                                "Driver": e_driver.strip(),
-                                "Vehicle": e_vehicle,
-                                "Destination / Purpose": e_dest,
-                                "Start Mileage": calc_sm,
-                                "End Mileage": calc_em,
-                                "Total Miles": calc_total,
-                                "Start Time": ed_st_val.strip(),
-                                "End Time": ed_et_val.strip(),
-                                "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                            }
-
-                            update_log_in_db(trip["id"], updated_trip)
-                            st.session_state.log_history = load_logs_from_db()
-                            st.success("Trip updated successfully!")
-                            st.rerun()
-
-                # Action links placed directly inside each trip expander container for reliable visibility
-                action_links_html = f"""
-                <div class="action-links-row">
-                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print</a>
-                    <span>|</span>
-                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete</a>
-                </div>
-                """
-                st.markdown(action_links_html, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
+                        e_vehicle = st.selectbox("Select Vehicle", vehicle_options, index=v_idx, key
