@@ -328,16 +328,17 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
+        # All sections collapsed by default on main form
         with st.expander("Trip Details", expanded=False):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
             vehicle = st.selectbox("Select Vehicle", vehicle_options, key=f"main_veh_{st.session_state.form_counter}")
             destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0", key=f"main_dest_{st.session_state.form_counter}")
 
-        with st.expander("Student Passengers", expanded=True):
+        with st.expander("Student Passengers", expanded=False):
             selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}")
 
-        with st.expander("Trip Start", expanded=True):
+        with st.expander("Trip Start", expanded=False):
             start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, placeholder="HH:MM", key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
@@ -475,30 +476,3 @@ else:
                                 "Start Time": ed_st_val.strip(),
                                 "End Time": ed_et_val.strip(),
                                 "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                            }
-
-                            update_log_in_db(trip["id"], updated_trip)
-                            st.session_state.log_history = load_logs_from_db()
-                            st.success("Trip updated successfully!")
-                            st.rerun()
-
-                # Action links placed directly inside each trip expander container for reliable visibility
-                action_links_html = f"""
-                <div class="action-links-row">
-                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print</a>
-                    <span>|</span>
-                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete</a>
-                </div>
-                """
-                st.markdown(action_links_html, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
