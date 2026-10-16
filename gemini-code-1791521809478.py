@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS to fix left-edge emoji clipping and unify H1/H3 heading sizes
+# Custom CSS for uniform expanders, unified H1/H3 sizes, and strict inline button rows
 st.markdown("""
     <style>
     .block-container {
@@ -16,11 +16,6 @@ st.markdown("""
         padding-bottom: 2rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
-    }
-    
-    /* Prevent title element left clipping on mobile */
-    [data-testid="stHeader"] {
-        background: transparent !important;
     }
     
     /* Unified font size for H1 and H3 headings */
@@ -38,6 +33,28 @@ st.markdown("""
     [data-testid="stExpander"] summary {
         background-color: #f9f9f9 !important;
         border-radius: 0.5rem !important;
+    }
+
+    /* Force Streamlit button columns into an unbreakable horizontal row at the bottom of the expander */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+        margin-top: 10px !important;
+        margin-bottom: 5px !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        width: auto !important;
+        flex: 0 0 auto !important;
+        min-width: unset !important;
+    }
+    [data-testid="stButton"] button {
+        width: auto !important;
+        padding: 0.3rem 0.6rem !important;
+        min-height: unset !important;
+        white-space: nowrap !important;
     }
 
     @media print {
@@ -285,7 +302,6 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
 
 else:
     # --- NORMAL APP & FORM MODE ---
-    # Render title using HTML markdown to guarantee zero left-edge emoji clipping on mobile
     st.markdown('<h1 style="padding-left: 0.2rem; margin-bottom: 1rem;">🚐 Vehicle Use Log</h1>', unsafe_allow_html=True)
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
@@ -418,24 +434,7 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
-                bc1, bc2, bc3 = st.columns(3)
-                with bc1:
-                    if st.button("🖨️", key=f"print_btn_{trip['id']}", help=f"Print Trip #{trip['id']}"):
-                        st.session_state.print_target_idx = idx
-                        st.rerun()
-                with bc2:
-                    if st.button("⏱️", key=f"btn_now_{trip['id']}", help="Set End Time to Now"):
-                        cur_t, cur_a = get_current_utc5_time()
-                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
-                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
-                        st.rerun()
-                with bc3:
-                    if st.button("🗑️", key=f"del_btn_{trip['id']}", help=f"Delete Trip #{trip['id']}"):
-                        delete_log_from_db(trip['id'])
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success(f"Trip #{trip['id']} deleted successfully!")
-                        st.rerun()
-
+                # Editable form fields first inside the expander body
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
                         default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
@@ -500,6 +499,25 @@ else:
                         st.success("Trip updated successfully!")
                         st.rerun()
 
+                # Action buttons placed right at the bottom of the expander section (outside the form)
+                bc1, bc2, bc3 = st.columns(3)
+                with bc1:
+                    if st.button("🖨️", key=f"print_btn_{trip['id']}", help=f"Print Trip #{trip['id']}"):
+                        st.session_state.print_target_idx = idx
+                        st.rerun()
+                with bc2:
+                    if st.button("⏱️", key=f"btn_now_{trip['id']}", help="Set End Time to Now"):
+                        cur_t, cur_a = get_current_utc5_time()
+                        st.session_state[f"ed_et_{trip['id']}"] = cur_t
+                        st.session_state[f"ed_ea_{trip['id']}"] = cur_a
+                        st.rerun()
+                with bc3:
+                    if st.button("🗑️", key=f"del_btn_{trip['id']}", help=f"Delete Trip #{trip['id']}"):
+                        delete_log_from_db(trip['id'])
+                        st.session_state.log_history = load_logs_from_db()
+                        st.success(f"Trip #{trip['id']} deleted successfully!")
+                        st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
 
         df_logs = pd.DataFrame(st.session_state.log_history)
@@ -508,5 +526,5 @@ else:
             label="Download Entire Log History as CSV",
             data=csv,
             file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/css",
+            mime="text/csv",
         )
