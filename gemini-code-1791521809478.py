@@ -213,7 +213,7 @@ if "action" in query_params and "trip_id" in query_params:
     except ValueError:
         pass
 
-# Helper function to get current UTC-5 time in 24-hour format for HTML time input (HH:MM)
+# Helper function to get current UTC-5 time in 24-hour format (HH:MM)
 def get_current_utc5_time_24h():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
     return utc_minus_5.strftime("%H:%M")
@@ -255,6 +255,7 @@ grouped_students = [
     "Zachary McDaniels"
 ]
 clean_students_list = [s for s in grouped_students if not s.startswith("---")]
+vehicle_options = ["Silver Van", "White Van", "Honda Pilot"]
 
 # --- INDIVIDUAL PRINT VIEW SCREEN ---
 if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
@@ -306,11 +307,11 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        # Trip Details (Expanded by default)
-        with st.expander("Trip Details", expanded=True):
+        # Trip Details (Collapsed by default on main form)
+        with st.expander("Trip Details", expanded=False):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
-            vehicle = st.selectbox("Select Vehicle", ["Silver Van", "White Van", "Honda Pilot"], key=f"main_veh_{st.session_state.form_counter}")
+            vehicle = st.selectbox("Select Vehicle", vehicle_options, key=f"main_veh_{st.session_state.form_counter}")
             destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0", key=f"main_dest_{st.session_state.form_counter}")
 
         # Student Passengers (Expanded by default)
@@ -319,11 +320,11 @@ else:
 
         # Trip Start (Expanded by default)
         with st.expander("Trip Start", expanded=True):
-            start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, key=f"main_st_{st.session_state.form_counter}")
+            start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, type="default", key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
-        # Trip End (Collapsed by default)
-        with st.expander("Trip End", expanded=False):
+        # Trip End (Expanded by default for quick logging)
+        with st.expander("Trip End", expanded=True):
             tc1, tc2 = st.columns([3, 1])
             with tc1:
                 end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
@@ -391,21 +392,30 @@ else:
                     except ValueError:
                         default_d = datetime.today().date()
                     
-                    with st.expander("Trip Details", expanded=True):
+                    # Trip Details (Collapsed by default in log form, includes driver and vehicle)
+                    with st.expander("Trip Details", expanded=False):
                         e_date = st.date_input("Date", value=default_d, key=f"ed_date_{trip['id']}")
+                        e_driver = st.text_input("Driver Name", value=trip["Driver"], key=f"ed_driver_{trip['id']}")
+                        
+                        v_idx = vehicle_options.index(trip["Vehicle"]) if trip["Vehicle"] in vehicle_options else 0
+                        e_vehicle = st.selectbox("Select Vehicle", vehicle_options, index=v_idx, key=f"ed_veh_{trip['id']}")
+                        
                         e_dest = st.text_input("Destination / Purpose", value=trip["Destination / Purpose"], key=f"ed_dest_{trip['id']}")
 
-                    with st.expander("Student Passengers", expanded=True):
+                    # Student Passengers (Collapsed by default in log form)
+                    with st.expander("Student Passengers", expanded=False):
                         current_trip_students = [s.strip() for s in trip["Students"].split(",") if s.strip() in clean_students_list]
                         e_students = st.multiselect("Student Passengers", grouped_students, default=current_trip_students, key=f"ed_students_{trip['id']}")
 
-                    with st.expander("Trip Start", expanded=True):
+                    # Trip Start (Collapsed by default in log form)
+                    with st.expander("Trip Start", expanded=False):
                         existing_sm = int(trip["Start Mileage"]) if trip["Start Mileage"] is not None and trip["Start Mileage"] != 0 else None
                         e_start_m = st.number_input("Start Mileage", min_value=0, value=existing_sm, step=1, format="%d", key=f"ed_sm_{trip['id']}")
                         est_t = convert_to_24h(trip["Start Time"])
                         ed_st_val = st.text_input("Start Time (HH:MM)", value=est_t, key=f"ed_st_{trip['id']}")
 
-                    with st.expander("Trip End", expanded=False):
+                    # Trip End (Expanded by default in log form)
+                    with st.expander("Trip End", expanded=True):
                         existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
                         eet_t = convert_to_24h(trip["End Time"])
                         default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
@@ -430,8 +440,8 @@ else:
 
                         updated_trip = {
                             "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": trip["Driver"],
-                            "Vehicle": trip["Vehicle"],
+                            "Driver": e_driver.strip(),
+                            "Vehicle": e_vehicle,
                             "Destination / Purpose": e_dest,
                             "Start Mileage": calc_sm,
                             "End Mileage": calc_em,
