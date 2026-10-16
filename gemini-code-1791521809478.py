@@ -393,6 +393,12 @@ else:
         for idx, trip in enumerate(st.session_state.log_history):
             with st.expander(f"Trip ID #{trip['id']}: {trip['Date']} - {trip['Vehicle']} (Driver: {trip['Driver']})"):
                 
+                # Check if a 'now' action was triggered for this specific trip before instantiating form widgets
+                now_trigger_key = f"trigger_now_{trip['id']}"
+                if st.session_state.get(now_trigger_key, False):
+                    st.session_state[f"ed_et_{trip['id']}"] = get_current_utc5_time_24h()
+                    st.session_state[now_trigger_key] = False
+
                 with st.form(f"edit_form_{trip['id']}"):
                     try:
                         default_d = datetime.strptime(trip["Date"], "%Y-%m-%d").date()
@@ -425,15 +431,14 @@ else:
                         edit_key = f"ed_et_{trip['id']}"
                         if edit_key not in st.session_state:
                             st.session_state[edit_key] = eet_t
-                        current_edit_et = st.session_state[edit_key]
                         
                         etc1, etc2 = st.columns([3, 1])
                         with etc1:
-                            ed_et_val = st.text_input("End Time (HH:MM)", value=current_edit_et, key=edit_key)
+                            ed_et_val = st.text_input("End Time (HH:MM)", key=edit_key)
                         with etc2:
                             st.markdown("<br>", unsafe_allow_html=True)
                             if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
-                                st.session_state[edit_key] = get_current_utc5_time_24h()
+                                st.session_state[now_trigger_key] = True
                                 st.rerun()
 
                         e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
