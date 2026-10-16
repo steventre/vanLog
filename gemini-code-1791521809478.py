@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS with increased top padding to prevent title clipping on mobile
+# Custom CSS for tight alignment and clean styling
 st.markdown("""
     <style>
     .block-container {
@@ -336,11 +336,11 @@ else:
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
         with st.expander("Trip End", expanded=False):
-            tc1, tc2 = st.columns([3, 1])
+            tc1, tc2 = st.columns([2, 1])
             with tc1:
                 end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
             with tc2:
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                 if st.form_submit_button("⏱️ Now"):
                     st.session_state[main_now_trigger] = True
                     st.rerun()
@@ -437,11 +437,11 @@ else:
                         if edit_key not in st.session_state:
                             st.session_state[edit_key] = eet_t
                         
-                        etc1, etc2 = st.columns([3, 1])
+                        etc1, etc2 = st.columns([2, 1])
                         with etc1:
                             ed_et_val = st.text_input("End Time (HH:MM)", key=edit_key)
                         with etc2:
-                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                             if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
                                 st.session_state[now_trigger_key] = True
                                 st.rerun()
