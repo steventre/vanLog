@@ -43,8 +43,9 @@ st.markdown("""
         flex-wrap: nowrap !important;
         gap: 16px !important;
         align-items: center !important;
-        margin-top: 8px !important;
-        margin-bottom: 4px !important;
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
+        padding-left: 4px !important;
         font-size: 0.95rem !important;
     }
     .action-links-row a {
@@ -98,9 +99,9 @@ st.markdown("""
         }
     }
     .scrollable-log-container {
-        max-height: 350px;
+        max-height: 400px;
         overflow-y: auto;
-        padding-right: 10px;
+        padding-right: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -477,4 +478,23 @@ else:
                             st.success("Trip updated successfully!")
                             st.rerun()
 
-                # Action links placed neatly in a single horizontal flex row without trip IDs
+                # Action links placed directly inside each trip expander container for reliable visibility
+                action_links_html = f"""
+                <div class="action-links-row">
+                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print</a>
+                    <span>|</span>
+                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete</a>
+                </div>
+                """
+                st.markdown(action_links_html, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_logs = pd.DataFrame(st.session_state.log_history)
+        csv = df_logs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Entire Log History as CSV",
+            data=csv,
+            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
