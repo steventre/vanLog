@@ -217,7 +217,7 @@ if "action" in query_params and "trip_id" in query_params:
 # Helper function to validate HH:MM time format
 def validate_time_format(time_str):
     if not time_str:
-        return True # Optional fields like end time can be empty
+        return True
     pattern = r"^([01]?[0-9]|2[0-3]):([0-5][0-9])$"
     return bool(re.match(pattern, time_str.strip()))
 
@@ -315,27 +315,24 @@ else:
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
-        # Trip Details (Collapsed by default)
         with st.expander("Trip Details", expanded=False):
             driver_name = st.text_input("Driver Name", value="Steven Hartl", key=f"main_dn_{st.session_state.form_counter}")
             trip_date = st.date_input("Date", value=datetime.today(), key=f"main_date_{st.session_state.form_counter}")
             vehicle = st.selectbox("Select Vehicle", vehicle_options, key=f"main_veh_{st.session_state.form_counter}")
             destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0", key=f"main_dest_{st.session_state.form_counter}")
 
-        # Student Passengers (Expanded by default)
         with st.expander("Student Passengers", expanded=True):
             selected_students = st.multiselect("Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}")
 
-        # Trip Start (Expanded by default)
         with st.expander("Trip Start", expanded=True):
             start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, placeholder="HH:MM", key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
-        # Trip End (Collapsed by default)
         with st.expander("Trip End", expanded=False):
             tc1, tc2 = st.columns([3, 1])
             with tc1:
-                end_time = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
+                main_end_val = st.session_state.get("main_end_time_val", "")
+                end_time = st.text_input("End Time (HH:MM)", value=main_end_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
             with tc2:
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.form_submit_button("⏱️ Now"):
@@ -424,15 +421,19 @@ else:
                     with st.expander("Trip End", expanded=True):
                         existing_em = int(trip["End Mileage"]) if trip["End Mileage"] is not None and trip["End Mileage"] != 0 else None
                         eet_t = convert_to_24h(trip["End Time"])
-                        default_et_val = st.session_state.get(f"ed_et_{trip['id']}", eet_t)
+                        
+                        edit_key = f"ed_et_{trip['id']}"
+                        if edit_key not in st.session_state:
+                            st.session_state[edit_key] = eet_t
+                        current_edit_et = st.session_state[edit_key]
                         
                         etc1, etc2 = st.columns([3, 1])
                         with etc1:
-                            ed_et_val = st.text_input("End Time (HH:MM)", value=default_et_val, key=f"ed_et_{trip['id']}")
+                            ed_et_val = st.text_input("End Time (HH:MM)", value=current_edit_et, key=edit_key)
                         with etc2:
                             st.markdown("<br>", unsafe_allow_html=True)
                             if st.form_submit_button("⏱️ Now", key=f"ed_now_btn_{trip['id']}"):
-                                st.session_state[f"ed_et_{trip['id']}"] = get_current_utc5_time_24h()
+                                st.session_state[edit_key] = get_current_utc5_time_24h()
                                 st.rerun()
 
                         e_end_m = st.number_input("Ending Mileage", min_value=0, value=existing_em, step=1, format="%d", key=f"ed_em_{trip['id']}")
