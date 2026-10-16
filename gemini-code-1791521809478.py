@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import re
 import sqlite3
 import pandas as pd
 import streamlit as st
@@ -213,6 +214,13 @@ if "action" in query_params and "trip_id" in query_params:
     except ValueError:
         pass
 
+# Helper function to validate HH:MM time format
+def validate_time_format(time_str):
+    if not time_str:
+        return True # Optional fields like end time can be empty
+    pattern = r"^([01]?[0-9]|2[0-3]):([0-5][0-9])$"
+    return bool(re.match(pattern, time_str.strip()))
+
 # Helper function to get current UTC-5 time in 24-hour format (HH:MM)
 def get_current_utc5_time_24h():
     utc_minus_5 = datetime.utcnow() - timedelta(hours=5)
@@ -320,10 +328,10 @@ else:
 
         # Trip Start (Expanded by default)
         with st.expander("Trip Start", expanded=True):
-            start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, type="default", key=f"main_st_{st.session_state.form_counter}")
+            start_time = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, placeholder="HH:MM", key=f"main_st_{st.session_state.form_counter}")
             start_mileage = st.number_input("Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}")
 
-        # Trip End (Collapsed by default on main form)
+        # Trip End (Collapsed by default)
         with st.expander("Trip End", expanded=False):
             tc1, tc2 = st.columns([3, 1])
             with tc1:
@@ -347,8 +355,10 @@ else:
             st.error("Starting Mileage is required.")
         elif not valid_selected_students:
             st.error("Please select at least one student passenger.")
-        elif not start_time.strip():
-            st.error("Start Time is required.")
+        elif not start_time.strip() or not validate_time_format(start_time):
+            st.error("Start Time is required and must be in valid HH:MM format (24-hour).")
+        elif end_time.strip() and not validate_time_format(end_time):
+            st.error("End Time must be in valid HH:MM format (24-hour).")
         else:
             s_mileage = int(start_mileage)
             e_mileage = int(end_mileage) if end_mileage is not None else 0
@@ -429,28 +439,33 @@ else:
 
                     e_saved = st.form_submit_button("Update Trip Entry")
                     if e_saved:
-                        valid_e_students = [s for s in e_students if not s.startswith("---")]
-                        calc_sm = e_start_m if e_start_m is not None else 0
-                        calc_em = e_end_m if e_end_m is not None else 0
-                        calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
+                        if not validate_time_format(ed_st_val):
+                            st.error("Start Time must be in valid HH:MM format (24-hour).")
+                        elif ed_et_val.strip() and not validate_time_format(ed_et_val):
+                            st.error("End Time must be in valid HH:MM format (24-hour).")
+                        else:
+                            valid_e_students = [s for s in e_students if not s.startswith("---")]
+                            calc_sm = e_start_m if e_start_m is not None else 0
+                            calc_em = e_end_m if e_end_m is not None else 0
+                            calc_total = calc_em - calc_sm if calc_em >= calc_sm else 0
 
-                        updated_trip = {
-                            "Date": e_date.strftime("%Y-%m-%d"),
-                            "Driver": e_driver.strip(),
-                            "Vehicle": e_vehicle,
-                            "Destination / Purpose": e_dest,
-                            "Start Mileage": calc_sm,
-                            "End Mileage": calc_em,
-                            "Total Miles": calc_total,
-                            "Start Time": ed_st_val.strip(),
-                            "End Time": ed_et_val.strip(),
-                            "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
-                        }
+                            updated_trip = {
+                                "Date": e_date.strftime("%Y-%m-%d"),
+                                "Driver": e_driver.strip(),
+                                "Vehicle": e_vehicle,
+                                "Destination / Purpose": e_dest,
+                                "Start Mileage": calc_sm,
+                                "End Mileage": calc_em,
+                                "Total Miles": calc_total,
+                                "Start Time": ed_st_val.strip(),
+                                "End Time": ed_et_val.strip(),
+                                "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
+                            }
 
-                        update_log_in_db(trip["id"], updated_trip)
-                        st.session_state.log_history = load_logs_from_db()
-                        st.success("Trip updated successfully!")
-                        st.rerun()
+                            update_log_in_db(trip["id"], updated_trip)
+                            st.session_state.log_history = load_logs_from_db()
+                            st.success("Trip updated successfully!")
+                            st.rerun()
 
                 # Action links placed neatly in a single horizontal flex row at the bottom of the expander
                 action_links_html = f"""
