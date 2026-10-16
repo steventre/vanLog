@@ -9,11 +9,11 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS for uniform expanders, unified H1/H3 sizes, and clean inline text links
+# Custom CSS with increased top padding to prevent title clipping on mobile
 st.markdown("""
     <style>
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 2rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
@@ -478,22 +478,3 @@ else:
                             st.rerun()
 
                 # Action links placed neatly in a single horizontal flex row without trip IDs
-                action_links_html = f"""
-                <div class="action-links-row">
-                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print</a>
-                    <span>|</span>
-                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete</a>
-                </div>
-                """
-                st.markdown(action_links_html, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        df_logs = pd.DataFrame(st.session_state.log_history)
-        csv = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Entire Log History as CSV",
-            data=csv,
-            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
-        )
