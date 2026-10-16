@@ -476,3 +476,30 @@ else:
                                 "Start Time": ed_st_val.strip(),
                                 "End Time": ed_et_val.strip(),
                                 "Students": ", ".join(valid_e_students) if valid_e_students else "None logged"
+                            }
+
+                            update_log_in_db(trip["id"], updated_trip)
+                            st.session_state.log_history = load_logs_from_db()
+                            st.success("Trip updated successfully!")
+                            st.rerun()
+
+                # Action links placed directly inside each trip expander container for reliable visibility
+                action_links_html = f"""
+                <div class="action-links-row">
+                    <a href="?action=print&trip_id={trip['id']}" target="_self">🖨️ Print</a>
+                    <span>|</span>
+                    <a href="?action=delete&trip_id={trip['id']}" target="_self" style="color: #d9534f;">🗑️ Delete</a>
+                </div>
+                """
+                st.markdown(action_links_html, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        df_logs = pd.DataFrame(st.session_state.log_history)
+        csv = df_logs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Entire Log History as CSV",
+            data=csv,
+            file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
+            mime="text/csv",
+        )
