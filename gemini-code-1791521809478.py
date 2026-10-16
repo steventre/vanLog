@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS: Reduced H1 size to fit 1 line, removed aggressive header blocking to keep mobile tools visible
+# Custom CSS: Clean single-line H1 and standard expanders
 st.markdown("""
     <style>
     .block-container {
@@ -34,24 +34,6 @@ st.markdown("""
     [data-testid="stExpander"] summary {
         background-color: #f9f9f9 !important;
         border-radius: 0.5rem !important;
-    }
-    
-    /* Force action buttons container into a strict horizontal row */
-    .action-icon-row {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 6px !important;
-        align-items: center !important;
-        margin-bottom: 10px !important;
-    }
-    .action-icon-row [data-testid="stButton"] {
-        display: inline-block !important;
-        width: auto !important;
-    }
-    .action-icon-row button {
-        width: auto !important;
-        padding: 0.3rem 0.6rem !important;
     }
 
     @media print {
@@ -205,4 +187,177 @@ def get_current_utc5_time():
     is_pm = hour_24 >= 12
     hour_12 = hour_24 % 12
     if hour_12 == 0:
-        hour_12
+        hour_12 = 12
+        
+    time_str = f"{hour_12}:{minute:02d}"
+    ampm = "PM" if is_pm else "AM"
+    return time_str, ampm
+
+cur_t_str, cur_ap = get_current_utc5_time()
+
+# Initialize default session state values for main form times if not present
+if "main_start_time_val" not in st.session_state:
+    st.session_state.main_start_time_val = cur_t_str
+if "main_start_ap_val" not in st.session_state:
+    st.session_state.main_start_ap_val = cur_ap
+if "main_end_time_val" not in st.session_state:
+    st.session_state.main_end_time_val = ""
+if "main_end_ap_val" not in st.session_state:
+    st.session_state.main_end_ap_val = "--"
+
+# Helper function to parse existing time string back into time value and AM/PM for editing
+def parse_time_string(time_str):
+    if not time_str:
+        return "", "--"
+    try:
+        parts = time_str.split()
+        t_val = parts[0]
+        ap = parts[1] if len(parts) > 1 else "AM"
+        return t_val, ap
+    except (ValueError, IndexError):
+        return "", "--"
+
+# Grouped student roster definition
+grouped_students = [
+    "--- GROUP A ---",
+    "Carmelo Behrendt",
+    "Dorian Patterson",
+    "Javion Townsend",
+    "Jevon Smiley",
+    "Nathaniel Nelson",
+    "--- GROUP B ---",
+    "Caleb Allen",
+    "Charles Mcintyre",
+    "Joel Afamefuna",
+    "Nicholas Gardner",
+    "Tyler Evans",
+    "Zachary McDaniels"
+]
+clean_students_list = [s for s in grouped_students if not s.startswith("---")]
+
+# --- INDIVIDUAL PRINT VIEW SCREEN ---
+if st.session_state.print_target_idx is not None and st.session_state.print_target_idx < len(st.session_state.log_history):
+    idx = st.session_state.print_target_idx
+    trip = st.session_state.log_history[idx]
+    
+    st.markdown('<div class="print-receipt">', unsafe_allow_html=True)
+    
+    st.markdown("<h1>🚐 Vehicle Use Log - Trip Receipt</h1>", unsafe_allow_html=True)
+    st.markdown(f"**Trip #{trip['id']} Report** (Generated: {datetime.today().strftime('%Y-%m-%d')})")
+    st.markdown("---")
+
+    st.markdown(f"### 📅 Date: {trip['Date']}")
+    st.markdown(f"**Driver:** {trip['Driver']}")
+    st.markdown(f"**Vehicle:** {trip['Vehicle']}")
+    st.markdown(f"**Destination / Purpose:** {trip['Destination / Purpose']}")
+    
+    st.markdown("---")
+    st.markdown("#### 👥 Student Passengers")
+    st.markdown(f'<div class="print-students-box"><strong>{trip["Students"]}</strong></div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    print_html_grid = f"""
+    <div class="print-grid">
+        <div><strong>Start Mileage:</strong> {trip['Start Mileage']} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>End Mileage:</strong> {trip['End Mileage']} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Total Miles:</strong> {trip['Total Miles']}</div>
+    </div>
+    <div style="margin-top: 4px; margin-bottom: 5px;">
+        <strong>Start Time:</strong> {trip['Start Time']} &nbsp;&nbsp;|&nbsp;&nbsp; 
+        <strong>End Time:</strong> {trip['End Time'] if trip['End Time'] else 'N/A'}
+    </div>
+    """
+    st.markdown(print_html_grid, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if st.button("⬅️ Back to Home / Entry Form"):
+        st.session_state.print_target_idx = None
+        st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<p class="print-hide">💡 <em>Tip: Use `Cmd+P` or `Ctrl+P` to print this individual trip page cleanly.</em></p>', unsafe_allow_html=True)
+
+else:
+    # --- NORMAL APP & FORM MODE ---
+    st.title("🚐 Vehicle Use Log")
+
+    with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
+        
+        # Collapsible Trip Details (Closed by default)
+        with st.expander("Trip Details", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                driver_name = st.text_input("Driver Name", value="Steven Hartl")
+            with col2:
+                trip_date = st.date_input("Date", value=datetime.today())
+
+            vehicle = st.selectbox(
+                "Select Vehicle",
+                ["Silver Van", "White Van", "Honda Pilot"]
+            )
+
+            destination = st.text_input("Destination / Purpose", value="Nehemiah 2.0")
+
+        # Collapsible Mileage & Time Tracking (Expanded by default)
+        with st.expander("Mileage & Time Tracking", expanded=True):
+            col3, col4 = st.columns(2)
+            with col3:
+                st.markdown("**Start Time (UTC-5)**")
+                sc1, sc2 = st.columns([2, 1])
+                with sc1:
+                    start_t_val = st.text_input("Start Time (HH:MM)", value=st.session_state.main_start_time_val, key=f"main_start_t_{st.session_state.form_counter}")
+                with sc2:
+                    start_ap_val = st.selectbox("Start AM/PM", ["AM", "PM"], index=0 if st.session_state.main_start_ap_val == "AM" else 1, key=f"main_start_ap_{st.session_state.form_counter}")
+
+                start_mileage = st.number_input(
+                    "Starting Mileage (Required)", min_value=0, value=None, step=1, format="%d", key=f"main_sm_{st.session_state.form_counter}"
+                )
+
+            with col4:
+                st.markdown("**End Time (UTC-5)**")
+                ec1, ec2 = st.columns([2, 1])
+                with ec1:
+                    end_t_val = st.text_input("End Time (HH:MM)", value=st.session_state.main_end_time_val, placeholder="HH:MM", key=f"main_end_t_{st.session_state.form_counter}")
+                with ec2:
+                    end_ap_options = ["--", "AM", "PM"]
+                    end_ap_idx = end_ap_options.index(st.session_state.main_end_ap_val) if st.session_state.main_end_ap_val in end_ap_options else 0
+                    end_ap_val = st.selectbox("End AM/PM", end_ap_options, index=end_ap_idx, key=f"main_end_ap_{st.session_state.form_counter}")
+
+                end_mileage = st.number_input(
+                    "Ending Mileage (Optional)", min_value=0, value=None, step=1, format="%d", key=f"main_em_{st.session_state.form_counter}"
+                )
+
+        # Collapsible Student Passengers (Expanded by default)
+        with st.expander("Student Passengers", expanded=True):
+            selected_students = st.multiselect(
+                "Select Students on Trip (Grouped Roster)", grouped_students, key=f"main_students_{st.session_state.form_counter}"
+            )
+
+        submitted = st.form_submit_button("Save Trip Entry")
+
+    # --- INSTANT "SET NOW" BUTTON (OUTSIDE FORM) ---
+    if st.button("⏱️ Set End Time to Current Time Now"):
+        cur_t, cur_a = get_current_utc5_time()
+        st.session_state.main_end_time_val = cur_t
+        st.session_state.main_end_ap_val = cur_a
+        st.session_state.form_counter += 1
+        st.rerun()
+
+    if submitted:
+        try:
+            driver_name_val = driver_name
+        except NameError:
+            driver_name_val = "Steven Hartl"
+        try:
+            trip_date_val = trip_date
+        except NameError:
+            trip_date_val = datetime.today()
+        try:
+            vehicle_val = vehicle
+        except NameError:
+            vehicle_val = "Silver Van"
+        try:
+            destination_val = destination
+        except NameError:
