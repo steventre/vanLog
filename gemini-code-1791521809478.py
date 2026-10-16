@@ -8,19 +8,24 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS: Added horizontal padding to block-container to prevent side clipping, unified H1/H3 sizes
+# Custom CSS to fix left-edge emoji clipping and unify H1/H3 heading sizes
 st.markdown("""
     <style>
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 2rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* Prevent title element left clipping on mobile */
+    [data-testid="stHeader"] {
+        background: transparent !important;
     }
     
     /* Unified font size for H1 and H3 headings */
     h1, h3 {
-        font-size: 1.4rem !important;
+        font-size: 1.3rem !important;
     }
 
     /* Standardize expander headers to have a consistent light gray background */
@@ -280,7 +285,8 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
 
 else:
     # --- NORMAL APP & FORM MODE ---
-    st.title("🚐 Vehicle Use Log")
+    # Render title using HTML markdown to guarantee zero left-edge emoji clipping on mobile
+    st.markdown('<h1 style="padding-left: 0.2rem; margin-bottom: 1rem;">🚐 Vehicle Use Log</h1>', unsafe_allow_html=True)
 
     with st.form(f"vehicle_log_form_{st.session_state.form_counter}"):
         
@@ -502,5 +508,5 @@ else:
             label="Download Entire Log History as CSV",
             data=csv,
             file_name=f"vehicle_usage_log_{datetime.today().strftime('%Y-%m-%d')}.csv",
-            mime="text/csv",
+            mime="text/css",
         )
