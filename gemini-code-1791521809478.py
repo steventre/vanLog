@@ -8,15 +8,17 @@ st.set_page_config(
     page_title="Vehicle Use Log", page_icon="🚐", layout="centered"
 )
 
-# Custom CSS: Unified font size for H1 and H3, removed text cutoff overflow restriction
+# Custom CSS: Added horizontal padding to block-container to prevent side clipping, unified H1/H3 sizes
 st.markdown("""
     <style>
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 2rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
     }
     
-    /* Make H1 and H3 headings match in size and keep text fully visible */
+    /* Unified font size for H1 and H3 headings */
     h1, h3 {
         font-size: 1.4rem !important;
     }
