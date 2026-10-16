@@ -3,7 +3,6 @@ import re
 import sqlite3
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 # Page configuration
 st.set_page_config(
@@ -311,43 +310,33 @@ if st.session_state.print_target_idx is not None and st.session_state.print_targ
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Native Mobile Web Share / Print Button component with corrected escaped braces
-    trip_summary_text = (
-        f"Vehicle Use Log - Trip #{trip['id']}\n"
+    # Download Trip text file link (works natively on iOS standalone web apps for instant viewing/printing)
+    trip_txt = (
+        f"VEHICLE USE LOG - TRIP #{trip['id']}\n"
+        f"----------------------------------------\n"
         f"Date: {trip['Date']}\n"
         f"Driver: {trip['Driver']}\n"
         f"Vehicle: {trip['Vehicle']}\n"
         f"Destination: {trip['Destination / Purpose']}\n"
+        f"Start Mileage: {trip['Start Mileage']}\n"
+        f"End Mileage: {trip['End Mileage']}\n"
         f"Total Miles: {trip['Total Miles']}\n"
-        f"Start Time: {trip['Start Time']} | End Time: {trip['End Time']}\n"
-        f"Passengers: {trip['Students']}"
+        f"Start Time: {trip['Start Time']}\n"
+        f"End Time: {trip['End Time']}\n"
+        f"Passengers: {trip['Students']}\n"
     )
     
-    share_button_html = f"""
-    <div style="text-align: center; margin: 10px 0;">
-        <button onclick="handleShare()" style="background-color: #007aff; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: 600; border-radius: 8px; cursor: pointer; width: 100%;">
-            📤 Share / Print Trip
-        </button>
-    </div>
-    <script>
-    function handleShare() {{
-        if (navigator.share) {{
-            navigator.share({{
-                title: 'Trip #{trip["id"]} Report',
-                text: {repr(trip_summary_text)},
-                url: window.location.href
-            }}).catch((error) => console.log('Sharing failed', error));
-        }} else {{
-            alert('Web Share is not supported on this browser. Try using Safari.');
-        }}
-    }}
-    </script>
-    """
-    components.html(share_button_html, height=60)
+    st.download_button(
+        label="📥 Download / Print Trip Summary (TXT)",
+        data=trip_txt,
+        file_name=f"trip_{trip['id']}_report.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.button("⬅️ Back to Home / Entry Form"):
+    if st.button("⬅️ Back to Home / Entry Form", use_container_width=True):
         st.session_state.print_target_idx = None
         st.rerun()
 
